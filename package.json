@@ -1,0 +1,35 @@
+{
+  "name": "between-cities-skate",
+  "version": "0.11.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "package": "npm run build && node tools/package.mjs",
+    "test:embed": "node tools/embed-smoke.mjs",
+    "test:menus": "node tools/menu-smoke.mjs",
+    "test:navigation": "node tools/navigation-smoke.mjs",
+    "test:cities": "node tools/cities-smoke.mjs",
+    "test:flow": "node tools/flow-smoke.mjs",
+    "test:headwear": "node tools/headwear-smoke.mjs",
+    "test:rails": "node tools/rails-smoke.mjs",
+    "test:spots": "node tools/spots-smoke.mjs",
+    "test:touch": "node tools/touch-smoke.mjs",
+    "test:crowd": "node tools/crowd-smoke.mjs",
+    "build:rider": "node tools/build-rider.mjs",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.0",
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.183.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18",
+    "@playwright/test": "^1.58.2"
+  }
+}

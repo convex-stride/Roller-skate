@@ -1,0 +1,58 @@
+#touch-controls[hidden], .touch-more[hidden] { display: none !important; }
+#touch-controls { position: fixed; inset: 0; pointer-events: none; z-index: 4; user-select: none; -webkit-user-select: none; }
+#touch-controls button, #touch-stick { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#touch-controls button { min-height: 46px; min-width: 46px; padding: 5px; border: 1px solid #d2e8dc66; background: #17383bd9; color: #f4f5e5; font-size: 11px; font-weight: 700; border-radius: 14px; }
+#touch-controls button.pressed { background: #e5f2b7; color: #173238; }
+.touch-toolbar { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; gap: 5px; }
+.touch-toolbar button { padding: 5px 9px !important; }
+#touch-stick { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: max(25px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border: 1px solid #cce8da66; border-radius: 50%; background: #15383c80; display: grid; place-items: center; }
+#touch-stick span { text-align: center; font-size: 9px; line-height: 3.4; color: #d4e7df; pointer-events: none; }
+#touch-stick i { position: absolute; width: 47px; height: 47px; border-radius: 50%; background: #dfebbdc4; box-shadow: 0 3px 12px #0005; pointer-events: none; }
+.touch-buttons { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); right: max(14px, env(safe-area-inset-right)); width: 174px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+#touch-controls .touch-jump { background: #e2edae; color: #1c3939; border-radius: 50%; }
+.touch-more { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 164px); display: grid; grid-template-columns: repeat(3, 1fr); width: 220px; gap: 5px; background: #102c30e8; padding: 8px; border-radius: 12px; }
+body.touch-play { overscroll-behavior: none; }
+body.touch-play #scene { touch-action: none; }
+body.touch-play .hint, body.touch-play .brand, body.touch-play .city, body.touch-play .map-key, body.touch-play .map-controls, body.touch-play .navigation-summary { display: none; }
+body.touch-play .topbar { pointer-events: none; }
+body.touch-play .map-wrap { top: max(65px, calc(env(safe-area-inset-top) + 50px)); bottom: auto; right: max(12px, env(safe-area-inset-right)); width: 116px; padding: 0; }
+body.touch-play .map-wrap canvas { width: 114px; height: 94px; }
+body.touch-play .map-heading { font-size: 7px; padding: 5px 7px; }
+body.touch-play .telemetry { left: 20px; bottom: 172px; }
+body.touch-play .speed { font-size: 30px; }
+body.touch-play .bar { width: 70px; }
+body.touch-play .combo { top: 37%; max-width: 90vw; }
+body.touch-play .combo b { font-size: 28px; }
+body.touch-play #spot-card { top: max(65px, calc(env(safe-area-inset-top) + 50px)); left: 12px; width: min(220px, calc(100vw - 148px)); padding: 10px; }
+body.touch-play #spot-card strong { font-size: 17px; margin: 6px 0; }
+body.touch-play #spot-card small { font-size: 8px; }
+body.touch-play #spot-card p { font-size: 10px; line-height: 1.35; margin-bottom: 6px; }
+body.touch-play .spot-actions { gap: 4px; margin-top: 7px; }
+body.touch-play .spot-actions button { min-height: 42px; padding: 7px; font-size: 10px; }
+body.touch-play #spot-reward { display: none; }
+body.touch-play #spot-leave { width: 100%; }
+body.touch-play .toast { top: 54%; max-width: 86vw; width: max-content; white-space: normal; font-size: 11px; padding: 10px; pointer-events: none; }
+body.touch-play .overlay { overflow-y: auto; align-items: flex-start; padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); touch-action: pan-y; }
+body.touch-play .panel { width: 100%; }
+body.touch-play .shell { overflow-y: auto; min-height: 0; height: 100dvh; touch-action: pan-y; }
+body.touch-play .lobby, body.touch-play .pause-shell, body.touch-play .wardrobe-shell { display: block; }
+body.touch-play .lobby-copy { position: relative; top: auto; left: auto; margin: 24px 5vw; }
+body.touch-play .lobby-bottom { position: relative; bottom: auto; left: auto; right: auto; margin: 28px 5vw; }
+body.touch-play .rider-caption { display: none; }
+body.touch-play .shell-footer { position: relative; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+body.touch-play .challenge-list button { min-height: 52px; }
+body.touch-play .settings-tabs { overflow-x: auto; flex-shrink: 0; }
+body.touch-play .settings-footer { flex-wrap: wrap; gap: 8px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+@media (max-width: 360px) { #touch-stick { width: 108px; height: 108px; left: 12px; } .touch-buttons { width: 162px; right: 9px; gap: 4px; } body.touch-play #spot-card { width: 172px; } }
+@media (orientation: landscape) and (max-height: 550px) {
+  body.touch-play #spot-card { top: 62px; width: 215px; }
+  body.touch-play #spot-detail { display: none; }
+  body.touch-play #spot-card strong { font-size: 16px; }
+  body.touch-play #spot-card small { display: none; }
+  body.touch-play #spot-leave { width: auto; }
+  body.touch-play .telemetry { bottom: 180px; left: 250px; }
+  body.touch-play .combo { top: 32%; }
+  body.touch-play .lobby-layout { padding-top: 20px; }
+  body.touch-play .lobby h1 { font-size: 46px; }
+  body.touch-play .shell-header { min-height: 55px; }
+}

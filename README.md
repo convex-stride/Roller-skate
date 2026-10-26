@@ -1,1 +1,112 @@
-# Roller-skate
+# Between Cities
+
+A playable Three.js inline-skating prototype connecting procedural Gdańsk and Riyadh.
+
+## Run
+
+Requires Node.js 22.12+ (validated with Node 24).
+
+```sh
+npm ci
+npm run dev
+```
+
+Open the address printed by Vite in a desktop browser with WebGL2 enabled.
+
+```sh
+npm test
+npm run build
+npm run preview
+```
+
+The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
+
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Between-Cities-Alive.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/between-cities-v0.11.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+
+Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
+
+## Controls
+
+Version 0.10 adds automatic phone/tablet touch controls. The left thumbstick pushes, turns and brakes; hold **JUMP** for height while another finger taps **180**, **Grab** or **Tweak**. **More** exposes spread eagle, stalefish, crouch, manual, slide and rail assist. Drag an empty part of the scene to look. **Pause**, **Map**, **Reset** and **Ride** are touch buttons. Fullscreen is offered where the browser supports it. Portrait and landscape layouts respect safe areas, and pause, interrupted touches and rotation release held inputs. Auto graphics disables mobile shadows and caps pixel density; manual graphics settings remain available. Keyboard/gamepad controls are retained. Touch controls remain available when the visual HUD is disabled.
+
+For phone access through itch.io, upload the packaged ZIP as HTML5, enable mobile-friendly play and fullscreen in the itch.io embed settings, then open the hosted page in a modern WebGL2 browser. This repository does not publish a live hosting URL. Phone controls have been checked through Chromium touch emulation, not on physical iOS/Android hardware.
+
+Version 0.3 introduces a full-screen sports-game lobby with a cinematic rider view, destination previews, a featured sprint, wardrobe swatches, and a redesigned pause menu. Settings are available from both the lobby and pause menu. Five tabs cover graphics, audio, camera/controls, accessibility, and saves/credits. Changes preview immediately; **Apply changes** saves them, while **Discard & back** or Escape restores the last applied preferences. Keyboard Tab/Shift+Tab navigate menus; arrow keys switch settings tabs and adjust focused sliders. The gamepad Menu button starts/resumes play or closes settings. Directional gamepad navigation of menus is not implemented.
+
+Graphics options affect actual render resolution, shadows, camera field of view, and exposure. Audio options control rolling sound and volume. Look sensitivity, vertical inversion, controller dead zone, auto-centering, and dynamic camera options affect gameplay. Accessibility options cover reduced camera motion, HUD scale/visibility, and stronger UI contrast. Preferences persist separately under `between-cities-settings-v1` and fall back to session-only operation in restricted previews. Progress export/import continues to cover game progress; preferences stay with the browser.
+
+WASD/arrows push, brake, and carve. **Press Space to jump immediately; hold briefly for the full height.** Shift crouches; land a descending jump along a rail to auto-catch and stay supported. E widens the catch assist, Space pops off, S releases, and the end of the rail releases naturally. Hold Q to manual, G to powerslide. **Tap Z/C for a left/right 180; tap again for 360. Tap F for a safety grab, X for a mute tweak, V for a spread eagle or B for a stalefish grab. On rails, F selects a soul grind and X a royale.** Trick taps can be combined with the jump. Drag the mouse to look. Enter starts nearby events; H opens controls; M opens the world map; R recovers; Escape pauses. Standard gamepads are also supported; see the in-game controls screen.
+
+Walkthrough: press Play and hold W toward the rail ahead. Hold Space as you reach the pale takeoff stripes, land along the rail, then tap X to try a royale grind. Pop off near its end with Space and tap V for a spread eagle. Open M to select a landmark or challenge, or follow the map toward the other city. Both cities connect through the central corridor without a level-select requirement.
+
+Version 0.4 adds a heading-up local minimap with nearby building footprints, parks, paths, rails, tokens, event markers, north indicator, and a metric scale. Use its +/− buttons to zoom. Open M and click a clear street or plaza to place a waypoint; A* routing accounts for building footprints and the canal bridge. The waypoint clears on arrival. Small street props still need player steering. Event checkpoints also become navigation targets while an event is active.
+
+## Physical model
+
+Rapier simulates a 75 kg capsule under gravity at 9.81 m/s². A fixed 60 Hz simulation applies forward push forces, quadratic aerodynamic drag, rolling resistance, directional skate grip, and braking impulses. Rapier resolves contacts, ramps, walls, and gravity. Continuous collision detection protects fast movement. Jumping uses a mass-scaled impulse; rail riding uses an assisted constrained path. Rendering and rider animation follow the physics body.
+
+Alternating push strokes use a 600 W power envelope and bounded force, friction-limited turning, centrifugal lean, and preserved horizontal momentum in the air. Tucking lowers aerodynamic drag. Version 0.6 takes off on press at 4.8 m/s vertically (5.2 while crouched), with an early release cutting upward speed for a smaller hop. Inputs have a 180 ms landing buffer and 100 ms coyote window. Input edges survive render frames without a physics step. One-tap spins target multiples of 180° at a bounded rotation rate; this assistance is a game mechanic. Landing alignment and impact speed control speed loss, compression, and a short bail recovery. Grinds lose speed rather than adding motor-like forward velocity. Physics positions interpolate for rendering between fixed steps.
+
+The rider is a 9,546-vertex clothed anatomical mesh built from CC0 MakeHuman core asset data, with generated skin weights, skeleton, vertex-colored athletic clothing, facial geometry and eyes, and detailed four-wheel skates. Version 0.5 gives the rider a fair skin tone, fitted charcoal hijab covering the scalp/ears/neck, and a burgundy paisley bandana tied over the hijab with cloth tails. The headwear replaces the earlier helmet and follows the head bone; the bandana tails move subtly with skating. Wardrobe now frames the upper body more closely for inspection. Procedural two-bone IK controls knees and elbows, places feet against nearby ground, and blends leaning, push strokes, crouches, and landing compression. Rails have round metal tubes and supports; a soft contact shadow keeps the rider visually grounded even on low graphics. This is not a photorealistic character or a complete motion-capture animation set.
+
+Version 0.7 replaces the flared scarf cone with a thin cloth surface fitted to the anatomical neck and shoulders, using the rider's skeleton and skin weights. A rounded loft covers the scalp with smooth normals, fine woven texture, subtle cloth sheen and a closer face opening. The wider weathered burgundy bandana is projected onto that hood, with soft creases, a side knot and unequal tapered pirate-style tails. Fair skin is retained; subtle lip, cheek and brow tones and eye pupils improve facial definition. Open **Rider → Inspect headwear** to zoom in and use **Turn rider** for front, profile and rear views. The cloth uses procedural geometry and animation, rather than a full cloth simulation.
+
+Three lateral support probes and smoothed ground normals, surface-dependent rolling/grip on stone/asphalt/limestone, gradual brake pressure, smoothed residual landing rotation, and finite manuals support the controller. Travel resets ground/contact and pending input state. Version 0.6 adds powerslides, latched grab/tweak poses, blended aerial leg poses, and immediate HUD trick feedback.
+
+This is a game-oriented physical model, not a biomechanics simulator. Lateral grip, jumping, grind assistance, spins, and the 16 m/s safety cap are deliberately tunable. The supplied YouTube reference could not be viewed due to network restrictions, so exact gameplay fidelity is unverified.
+
+## World and content
+
+Version 0.11 replaces the twelve looping pedestrian capsules with a resident director. Authored skating, walking, café, market and spectator routes populate the Motława quay, Deera/Masmak square, Olaya pavements and both stunt venues. Ambient residents also populate other neighborhoods as you explore. Residents push and coast, walk, pause to talk or check a phone, serve coffee and cheer nearby landed tricks. Steering uses building/canal clearance, actual collider probes, separation from other residents and the player's predicted path. Their motion interpolates between AI updates. They use steering rather than physical body collisions, so very dense groups can still intersect.
+
+Nearby NPCs share the anatomical rider mesh with independently articulated knees, elbows, feet and hands, varied clothing/skin colours, headwear, shoes/skates, phones and cups. Distant people use instanced articulated silhouettes. The render budget is 84 residents with up to 20 detailed characters on desktop, or 44/10 on touch devices. Only nearby residents are simulated; this is not a continuous simulation of every person across 4 km². Café terraces, a coffee kiosk, books, bicycles, coffee service and market displays give groups visible destinations.
+
+Press **N** or tap **Ride with [name]** in the spot card to invite a nearby local skater for 45 seconds. Lead the route; the companion follows with an offset, avoids obstacles and reacts to tricks. Tap the button again to end the ride. Traveling far away also ends it. Companions are local AI residents in the single-player world. The phone invite button is shown during free skating.
+
+Version 0.10 adds **Dockyard Sessions** in Gdańsk and **Sky Garden** in Riyadh. Both are accessible from the world map, the on-screen spot card, or **T** on keyboard. Each has a physical ramp-to-roof jump course, a slalom past a moving maintenance cart, and a 45-second trick session: six new challenges alongside the original 36 events. Cargo containers, a crane gantry, pennants, palm shade structures and lanterns distinguish the two venues. Elevated decks and landings have persistent colliders; moving carts use Rapier kinematic bodies. These are fictional recreational spaces, not real-city reconstructions.
+
+Runs have ordered checkpoints, time limits, bronze/silver/gold results, quick retries and saved best records. Roof runs require a jump and a grounded finish; gates validate height so skating underneath a roof does not count. Trick parties require 300 newly banked points, with 600/1200 for silver/gold. Each different completed event or spot earns progress toward a jacket colour, unlocked every two completions. **End run** leaves the spot available for free skating; **Try another** switches challenges.
+
+Version 0.9 starts Gdańsk along the Motława waterfront, facing a quay rail and the river, and Riyadh in a limestone heritage square facing Masmak with Souq Al Zal-inspired shop arcades. Each has its own clear approach, practice rail, heading and backdrop. Neptune’s Fountain (bronze figure, trident and basin) and Deera Clock Tower join the landmark destinations. These are handcrafted, compressed interpretations of real city features, not surveyed replicas.
+
+Version 0.8 gives each city its own setting: Gdańsk has cool Baltic daylight, grey stone paving, a street opening toward the quay and a shipyard crane skyline. Riyadh has warm dusty daylight, a dry inland horizon, sandstone souq arcades and low heritage quarters outside the modern central corridor. Riyadh's arrival has asymmetric low and high building fronts and shaded seating bays instead of the shared café umbrellas. Heritage arcade piers are included in navigation clearance. The connected city dimensions remain 1,600 × 1,600 m each. These are stylized architectural interpretations, not surveyed street replicas.
+
+Each city occupies 1,600 × 1,600 m. City floors total 5.12 km² gross, with a separate 400 × 300 m connector. Building footprints are checked to leave more than 2 km² per city; full reachable-surface/navigation certification remains future work. Nearby 200 m cells load/unload their visuals and collision while the static ground remains safe. Repeated geometry is instanced by material, and released cells dispose of instance buffers.
+
+Version 0.6 separates the street generators: Gdańsk uses 7–9 m stone lanes, narrow merchant terraces and green rear courts; Riyadh uses 24–28 m arterials on large blocks, taller glass towers, limestone courts, palms and high shade structures. The arrival streets also have different widths and obstacle placements. The minimap shares street footprints with the renderer. Junction rectangles no longer overlap coplanar surfaces. Duplicate arrival obstacles were removed. Chunk construction is queued one cell per rendered frame, with nearby teleport collisions loaded immediately and a small cache to reduce rebuilding. A sphere cast clamps the actual camera position against walls; the camera follows only part of a jump's vertical rise so takeoff reads clearly.
+
+Includes 36 data-driven event starts (sprint, trick jam, and route challenge), 120 route tokens, local personal records, combo scoring, outfit colors, gamepad input, a world map, optional synthesized skate audio, and save import/export. Event and collectible positions are checked against building footprints.
+
+Version 0.2 adds authored arrival streets in both cities, narrower shopfronts, pitched merchant-house roofs, storefront signs and awnings, stone surrounds and shutters, original plaster/brick/paving textures, café seating, planted skate pockets, and animated pavement pedestrians. Gdańsk has a canal cut into the physical ground, a skateable bridge, quay rails, boats, and a harbor crane. Riyadh has a palm courtyard, fountain, lattice screens, and pergolas. Atmospheric sky lighting, a closer camera, more articulated rider/clothing, and real-world paving scale improve readability. Repeated meshes are instanced, including the arrival streets; sustained low frame rates trigger a lower graphics preset, which can be overridden from pause.
+
+Outer districts still reuse modular layouts, and the visual style remains stylized rather than photorealistic. Full landmark art, bespoke event design, final rider/animations, a full tutorial sequence, richer audio, advanced landing balance, accessibility/rebinding, and measured hardware optimization from [GAME_PLAN.md](GAME_PLAN.md) remain unfinished. This is not the completed release described in that plan. Pedestrians are visual ambient characters rather than collision-enabled traffic.
+
+Version 0.5 adds architectural interpretations of Żuraw, Main Town Hall, Green Gate, Kingdom Centre, Al Faisaliyah, and Masmak. Gdańsk's arrival district has narrower, taller merchant-house fronts. Riyadh has modern glass buildings, an Olaya-style asphalt boulevard, lane markings, parked sedans, and palm-lined pavements. Open the world map and use an **Explore:** destination to visit a landmark. Building generation reserves their footprints and navigation marks them. See [CITY_ACCURACY.md](CITY_ACCURACY.md) for the important geographic limits: these are compressed architectural recreations, not street-accurate replicas or scanned models.
+
+## Validation
+
+`npm run test:crowd` verifies moving residents in both starting areas, trick reactions, inviting a companion, city travel, spectators at a stunt venue, the phone crowd budget and runtime/shader errors. Unit tests check route progress, legal ground, reactions without repeated scoring triggers, player yielding, companion behavior and blocked movement. Crowd screenshots are saved under `releases/`.
+
+`npm run test:spots` drives both rooftop courses using real input/physics, clears their gaps, finishes with medals, verifies the jacket unlock and reloads the save. `npm run test:touch` uses Chromium's actual multi-touch event pipeline to check simultaneous thumbstick/jump/spin, drag look, cancellation, portrait/landscape layouts, pause, settings and map travel. Screenshots are saved in `releases/`. Unit tests additionally cover ordered elevated gates, failed runs, grounded finishes and timed trick medals.
+
+`npm run test:rails` drives from each new city spawn, jumps onto a solid rail without E, sustains a royale grind, pops off and lands a spread-eagle stunt. It captures each start and rail/stunt poses and checks runtime/shader errors. Rapier tests cover both rail axes, rejected catches, end release, brake release, pop-outs and landing-only stunt scoring.
+
+`npm test` runs real Rapier integration checks for grounded stability, acceleration/coasting/braking, jump gravity, wall collisions, scoring, map connectivity, area after building footprints, and objective placement.
+
+`node tools/smoke.mjs` runs Chromium through Playwright against an already running server. It checks actual movement, jumping, pause, city travel, event start, and uncaught browser errors, and writes screenshots to `/tmp`. Set `CHROMIUM_PATH` if Chromium is elsewhere and `GAME_URL` to test a production preview. This is not a performance certification or a human assessment of movement feel.
+
+`npm run test:menus` checks lobby destinations, live settings, apply/discard, preference persistence across reloads, wardrobe changes, navigation back to the correct screen, actual renderer/camera values, resumed skating, and a compact settings layout. Start the production preview on port 4173 first. It writes lobby/settings screenshots to `releases/`. `node tools/scenery-smoke.mjs` checks the canal bridge and scenery rendering.
+
+`npm run test:navigation` checks the loaded anatomical model, minimap zoom, a clicked world-map waypoint, the planned route, a physical skate across the canal bridge, waypoint arrival, and rendering/runtime errors. Unit tests also check routing around buildings, bridge selection, aerial momentum, and crouched versus upright coasting.
+
+`npm run test:cities` checks the configured fair-skinned hijabi rider/bandana, captures the close-up, visits all eight landmark destinations on physical ground, and checks for runtime/shader errors. Unit tests verify reserved landmark plots, legal arrival points, surface rolling differences, and the manual release requirement.
+
+`npm run test:flow` checks jump-on-press while Space is held, a one-tap 180 plus grab landing, the H controls shortcut, and a continuous 215 m ride through a Riyadh chunk boundary. It saves separate city and aerial screenshots. Unit tests additionally check quick input retention, buffered landing jumps, variable jump height, double-tap 360s, rail pop-outs, distinct building scales, and non-overlapping road junction faces.
+
+`npm run test:headwear` checks the pirate-wrap appearance, close-up camera, rotation control, return to the full outfit and resumed skating. It saves front, profile and rear screenshots for visual fit inspection and checks runtime/shader errors.
+
+## Saves and credits
+
+Progress is stored under `between-cities-v1` in localStorage. Export/import is available in pause. Restricted browser storage falls back to session play. No accounts or external services are required.
+
+World geometry, helmet/skates, and optional noise-based rolling audio are generated in code. Rider anatomy and clothing proxy data come from MakeHuman core assets (CC0 1.0); see `tools/assets/README.md`. Rendering: Three.js (MIT). Physics: Rapier (Apache-2.0). Full runtime license notices are bundled in `public/THIRD_PARTY_NOTICES.txt`, copied to production, and linked from settings. No assets from the referenced commercial games, commercial music, or remote CDN dependencies are used. The complete rider mesh is embedded in the standalone build.
