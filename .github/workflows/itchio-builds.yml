@@ -65,7 +65,9 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
 
-  android-debug:
+  android-release:
+    # Only manually triggered runs can produce a signed production APK.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,14 +93,46 @@ jobs:
         run: |
           sdkmanager --install "ndk;27.2.12479018"
           echo "NDK_HOME=${ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
-      - name: Generate Tauri icons
-        run: npx --yes @tauri-apps/cli@2 icon tools/tauri-icon.svg --output src-tauri/icons
-      - name: Initialize Android host
-        run: npx --yes @tauri-apps/cli@2 android init
-      - name: Build debug APK (not release signed)
-        run: npx --yes @tauri-apps/cli@2 android build --apk --debug
+      - name: Generate icons and initialize Android host
+        run: |
+          npx --yes @tauri-apps/cli@2 icon tools/tauri-icon.svg --output src-tauri/icons
+          npx --yes @tauri-apps/cli@2 android init
+      - name: Restore signing key from GitHub Secrets
+        shell: bash
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEY_BASE64" || { echo "::error::Configure ANDROID_KEY_BASE64 secret"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "::error::Configure ANDROID_KEY_PASSWORD secret"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "::error::Configure ANDROID_KEY_ALIAS secret"; exit 1; }
+          printf '%s' "$ANDROID_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/layans-keystore.jks"
+          chmod 600 "$RUNNER_TEMP/layans-keystore.jks"
+          {
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'password=%s\n' "$ANDROID_KEY_PASSWORD"
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/layans-keystore.jks"
+          } > src-tauri/gen/android/keystore.properties
+          chmod 600 src-tauri/gen/android/keystore.properties
+      - name: Configure release signing
+        run: python3 tools/configure-android-release.py
+      - name: Build production APK
+        run: npx --yes @tauri-apps/cli@2 android build --apk
+      - name: Verify and stage exactly one signed release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find src-tauri/gen/android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' ! -name '*unsigned*' | sort)
+          test "${#apks[@]}" -eq 1 || { echo "::error::Expected exactly one signed release APK, found ${#apks[@]}"; exit 1; }
+          APK="${apks[0]}"
+          SDK_BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$SDK_BUILD_TOOLS/apksigner" verify --verbose "$APK"
+          mkdir -p release-output
+          cp "$APK" release-output/Layans-Skate-v0.23.0-android-release.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: layans-skate-android-debug
-          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          name: layans-skate-android-release
+          path: release-output/Layans-Skate-v0.23.0-android-release.apk
           if-no-files-found: error
