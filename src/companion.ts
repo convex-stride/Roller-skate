@@ -8,6 +8,7 @@ export type PartnerMode = "follow" | "guide" | "wait" | "cheer" | "tricks" | "pa
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 export class Companion {
   skater: Skater | null = null;
+  spawnId = 0;
   mode: PartnerMode = "follow";
   message = "Call me whenever you want company, Layan.";
   route: Point[] = [];
@@ -16,6 +17,7 @@ export class Companion {
   private planClock = 0;
   private trickClock = 0;
   private lastJumps = 0;
+  private lastFigure = 0;
   private lastScore = 0;
   private celebration = 0;
   private pausedForRace = false;
@@ -29,9 +31,9 @@ export class Companion {
       if (!clearGround(x, z, 0.8)) continue;
       const hit = this.world.castRay(new RAPIER.Ray({ x, y: p.y + 3, z }, { x: 0, y: -1, z: 0 }), 25, true, undefined, undefined, undefined, this.player.body, collider => !this.skater || collider.parent()?.handle !== this.skater.body.handle);
       if (!hit || p.y + 3 - hit.timeOfImpact > p.y + 1) continue;
-      this.dismiss(); this.skater = new Skater(this.world, x, z);
+      this.dismiss(); this.skater = new Skater(this.world, x, z); this.spawnId++;
       this.skater.body.setTranslation({ x, y: p.y + 3 - hit.timeOfImpact + 0.88, z }, true);
-      this.skater.heading = this.player.heading; this.lastJumps = this.player.jumpCount; this.lastScore = this.player.banked;
+      this.skater.heading = this.player.heading; this.lastJumps = this.player.jumpCount; this.lastFigure = this.player.figure.sequence; this.lastScore = this.player.banked;
       this.planClock = 0; this.plannedGoal = null; this.route = []; return true;
     }
     return false;
@@ -88,12 +90,16 @@ export class Companion {
     const ahead = this.world.castRay(new RAPIER.Ray({ x: p.x, y: p.y, z: p.z }, { x: Math.sin(s.heading), y: 0, z: Math.cos(s.heading) }), 0.7 + s.speed * 0.2, true, undefined, undefined, s.collider, s.body);
     if (ahead && ahead.collider.parent()?.handle !== this.player.body.handle) { c.brake = 1; c.throttle = 0; this.planClock = 0; this.plannedGoal = null; }
     const newJump = this.player.jumpCount > this.lastJumps; this.lastJumps = this.player.jumpCount;
-    if (s.grounded && ((newJump && distance(p, player) < 18 && this.mode !== "wait") || (this.mode === "tricks" && this.trickClock <= 0))) {
+    if (s.grounded && !this.player.figure.action && !s.figure.action && ((newJump && distance(p, player) < 18 && this.mode !== "wait") || (this.mode === "tricks" && this.trickClock <= 0))) {
       c.jumpPressed = true; c.jump = true; c.tricks = ["left", "grab"]; this.trickClock = 5;
       if (this.player.flipKind) c.tricks.push(this.player.flipKind);
       else if (this.mode === "tricks") c.tricks.push("backflip");
     }
     if (!s.grounded && !s.flipKind && this.player.flipKind && distance(p, player) < 18) c.tricks.push(this.player.flipKind);
+    const mirrorFigure = this.player.figure.sequence > this.lastFigure && this.player.figure.action && this.mode === "pairs" && distance(p, player) < 18;
+    if (mirrorFigure) c.tricks.push(this.player.figure.action!);
+    this.lastFigure = this.player.figure.sequence;
+    if (s.figure.action || mirrorFigure) { c.brake = 0; c.jumpPressed = false; c.grab = false; }
     s.tick(c, []);
     if (guiding && remaining < 4 && distance(player, target) < 9) this.message = `We’re here, Layan — ${goal.label}.`;
     else if (waitingForLayan) this.message = "I’m just ahead. Follow my blue marker; I’ll wait for you.";
@@ -101,7 +107,7 @@ export class Companion {
   visual(time: number): CrowdPerson | null {
     if (!this.skater || this.pausedForRace) return null;
     const s = this.skater, p = s.body.translation(), player = this.player.body.translation();
-    return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset, airPitch: s.airPitch + s.landingPitchOffset, airRoll: s.airRoll + s.landingRollOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
+    return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset + s.figure.rotation + (s.switchStance ? Math.PI : 0), figure: s.figure.view, airPitch: s.airPitch + s.landingPitchOffset, airRoll: s.airRoll + s.landingRollOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
   }
-  get state() { const s = this.skater; return { active: this.active, mode: this.mode, message: this.message, position: s ? { ...s.body.translation() } : null, speed: s?.speed ?? 0, surface: s?.surface ?? null, jumps: s?.jumpCount ?? 0, routePoints: this.route.length, racing: this.pausedForRace }; }
+  get state() { const s = this.skater; return { active: this.active, mode: this.mode, message: this.message, position: s ? { ...s.body.translation() } : null, speed: s?.speed ?? 0, surface: s?.surface ?? null, figure: s?.figure.view ?? null, jumps: s?.jumpCount ?? 0, routePoints: this.route.length, racing: this.pausedForRace }; }
 }

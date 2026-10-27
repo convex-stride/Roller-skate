@@ -4,6 +4,11 @@ import { cityReflections, balticFoliage } from "./world-art";
 import { NightLighting, nightGeometries } from "./night";
 import { iceRinks, iceAt, iceVenueAt, rinkArrival, rinkEntrance } from "./ice-rinks";
 import { buildIceArenas } from "./ice-scene";
+import { figureMoves } from "./figure-skating";
+import type { FigureAction } from "./input";
+import { IceGame, recordIceWin, validIceRecords, type IceGameMode, type IceRecords } from "./ice-games";
+import { createIcePlayUI } from "./ice-play-ui";
+import { createIcePlayScene } from "./ice-play-scene";
 import { surface, waterMaterial, waterTime } from "./world-materials";
 import { RAPIER, Skater, STEP, idle, type Rail } from "./physics";
 import { ActionBuffer, createGamepadReader } from "./input";
@@ -63,13 +68,13 @@ app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></c
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.17 / FLIPS & AIRTIME").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.21 / FIGURE FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
 const el = (id: string) => document.getElementById(id)!;
 el("hud").insertAdjacentHTML("beforeend", `<aside id="quest-card" class="hidden" aria-label="Neighbourhood quest"><small id="quest-area"></small><strong id="quest-title"></strong><p id="quest-dialogue"></p><b id="quest-objective"></b><span id="quest-progress"></span><small id="quest-xp"></small><div class="quest-actions"><button id="quest-accept">Accept quest</button><button id="quest-interact">Interact</button><button id="quest-abandon">Abandon quest</button><button id="quest-close">Close</button></div></aside>`);
-el("hud").insertAdjacentHTML("beforeend", `<aside id="ice-card" class="hidden" aria-label="Ice arena"><small>MALL ICE · STADIUM SEATING</small><strong id="ice-name"></strong><span id="ice-status"></span><div class="ice-actions"><button id="ice-enter">Enter ice</button><button id="ice-partner">Skate with Taqee</button><button id="ice-exit">Mall entrance</button></div></aside>`);
+el("hud").insertAdjacentHTML("beforeend", `<aside id="ice-card" class="hidden" aria-label="Ice arena"><small>MALL ICE · STADIUM SEATING</small><strong id="ice-name"></strong><span id="ice-status"></span><div class="ice-actions"><button id="ice-play">Moves & games</button><button id="ice-enter">Enter ice</button><button id="ice-partner">Skate with Taqee</button><button id="ice-exit">Mall entrance</button></div></aside>`);
 el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>J · Neighbourhood quests</b>Find local jobs · Enter / Y to accept or interact</div>");
 el("quest-interact").insertAdjacentHTML("afterend", '<button id="quest-bank" hidden>Ride bank</button>');
 document.querySelectorAll(".rider-profile > span:last-child").forEach(node => { node.innerHTML = "LAYAN<small>FREESTYLE RIDER</small>"; });
@@ -109,6 +114,7 @@ type Save = {
   completedQuests?: string[];
   questProgress?: QuestSnapshot;
   partnerActive?: boolean;
+  iceRecords?: IceRecords;
   partnerRaceResults?: Record<string, { time: number; place: number; wins: number; best?: number }>;
 };
 let save: Save = { version: 1, collected: [], records: {}, outfit: 0, best: 0 };
@@ -134,6 +140,7 @@ function validSave(v: unknown): v is Save {
     s.best >= 0 &&
     (s.completedQuests === undefined || (Array.isArray(s.completedQuests) && new Set(s.completedQuests).size === s.completedQuests.length && s.completedQuests.every(id => quests.some(q => q.id === id)))) &&
     (s.questProgress === undefined || validQuestSnapshot(s.questProgress)) &&
+    (s.iceRecords === undefined || validIceRecords(s.iceRecords)) &&
     (s.partnerActive === undefined || typeof s.partnerActive === "boolean") &&
     (s.partnerRaceResults === undefined || (s.partnerRaceResults !== null && typeof s.partnerRaceResults === "object" && Object.entries(s.partnerRaceResults).every(([id, result]) => races.some(r => r.id === id) && !!result && Number.isFinite(result.time) && result.time > 0 && Number.isInteger(result.place) && result.place >= 1 && result.place <= 2 && Number.isInteger(result.wins) && result.wins >= 0 && (result.best === undefined || (Number.isFinite(result.best) && result.best > 0))))) &&
     (s.raceResults === undefined || (s.raceResults !== null && typeof s.raceResults === "object" && Object.entries(s.raceResults).every(([id, result]) =>
@@ -147,7 +154,7 @@ try {
   /* Session-only when storage is restricted. */
 }
 let saveFailed = false;
-const completionCount = () => Object.keys(save.records).length + (save.completedQuests?.length ?? 0);
+const completionCount = () => Object.keys(save.records).length + (save.completedQuests?.length ?? 0) + Object.keys(save.iceRecords ?? {}).length;
 function persist() {
   try {
     localStorage.setItem("between-cities-v1", JSON.stringify(save));
@@ -565,11 +572,15 @@ async function boot() {
   const iceScene = buildIceArenas(scene, { box, cylinder, tree, rail, material }, mobileDevice, g => batchInstances(g));
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const companion = new Companion(world, skater);
+  const iceEffects = createIcePlayScene(scene);
+  let iceRun: IceGame | null = null, iceAwarded = false;
+  const emptyIceRecords: IceRecords = {};
   let restorePartner = !!save.partnerActive;
   const partnerLabelCanvas = document.createElement("canvas"); partnerLabelCanvas.width = 256; partnerLabelCanvas.height = 64;
   const partnerLabelContext = partnerLabelCanvas.getContext("2d")!; partnerLabelContext.fillStyle = "#16363ee8"; partnerLabelContext.fillRect(0, 0, 256, 64); partnerLabelContext.fillStyle = "#bce9f7"; partnerLabelContext.font = "bold 30px Arial"; partnerLabelContext.textAlign = "center"; partnerLabelContext.fillText("TAQEE", 128, 44);
   const partnerLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(partnerLabelCanvas), depthTest: true })); partnerLabel.scale.set(1.6, 0.4, 1); partnerLabel.visible = false; scene.add(partnerLabel);
   function togglePartner() {
+    iceUI.close();
     if (!companion.active) { companion.call(); save.partnerActive = companion.active; persist(); }
     const open = el("partner-panel").classList.contains("hidden");
     el("partner-panel").classList.toggle("hidden", !open); el("partner-toggle").setAttribute("aria-expanded", String(open));
@@ -816,6 +827,7 @@ async function boot() {
   }
   function visitRink(id: string, entrance = false) {
     const rink = iceRinks.find(r => r.id === id)!;
+    iceRun = null; iceUI.close();
     stopRace(); stopSpot(); active = null; gate.visible = false; waypoint = null; focusedQuest = null;
     el("event").classList.add("hidden");
     const point = entrance ? rinkEntrance(rink) : rinkArrival(rink);
@@ -823,6 +835,32 @@ async function boot() {
     stream(true); closeMenus(); snapCamera();
     toast(entrance ? `${rink.name} · Walk through the entrance to reach the ice` : `${rink.name} · Ice blades fitted · Glide, jump, or invite Taqee`);
   }
+  function performFigure(id: FigureAction) {
+    const p = skater.body.translation();
+    if (!iceAt(p.x, p.z) || !skater.grounded) { toast("Start figure moves with your blades on the ice."); return; }
+    if (skater.figure.action) return;
+    actions.trick(id); iceUI.close(); canvas.focus();
+  }
+  function startIceGame(mode: IceGameMode) {
+    const p = skater.body.translation(), rink = iceAt(p.x, p.z);
+    if (!rink) { toast("Enter the ice to start an arena game."); return; }
+    visitRink(rink.id);
+    if (mode === "duet") { companion.call(); companion.command("pairs"); save.partnerActive = companion.active; persist(); }
+    iceRun = new IceGame(rink, mode, skater.figure.completed, companion.skater?.figure.completed ?? 0); iceAwarded = false;
+    el("partner-panel").classList.add("hidden");
+    toast(`${iceRun.title} · ${mode === "slalom" ? "Follow the gold gates" : "Use Perform element to build your routine"}`);
+  }
+  function tickIceGame() {
+    if (!iceRun) return;
+    const p = skater.body.translation(), partner = companion.skater;
+    iceRun.tick({ ...p, onIce: iceAt(p.x, p.z)?.id === iceRun.rink.id, grounded: skater.grounded, figure: skater.figure.lastResult,
+      partner: partner ? { ...partner.body.translation(), active: true, generation: companion.spawnId, figure: partner.figure.lastResult } : null }, STEP);
+    if (iceRun.status === "won" && !iceAwarded) {
+      iceAwarded = true; save.iceRecords = recordIceWin(save.iceRecords ?? {}, iceRun);
+      skater.combo += 300; skater.bank(); persist(); refreshLobby(); iceEffects.celebrate(p.x, p.z); toast(iceRun.message);
+    }
+  }
+  el("ice-play").onclick = () => { el("partner-panel").classList.add("hidden"); iceUI.open(); };
   el("ice-enter").onclick = () => { const p = skater.body.translation(), r = iceVenueAt(p.x, p.z, 8); if (r) visitRink(r.id); };
   el("ice-exit").onclick = () => { const p = skater.body.translation(), r = iceVenueAt(p.x, p.z, 8); if (r) visitRink(r.id, true); };
   el("ice-partner").onclick = () => {
@@ -837,6 +875,7 @@ async function boot() {
   function startNearby() {
     if (raceSession) { if (raceSession.run.status === "finished" || raceSession.run.status === "timeout") startRace(raceSession.run.definition, raceSession.duet); return; }
     const p = skater.body.translation(), rink = iceVenueAt(p.x, p.z, 8);
+    if (iceRun?.targetMove) { performFigure(iceRun.targetMove); return; }
     if (rink) { if (iceAt(p.x, p.z)) el("ice-partner").click(); else visitRink(rink.id); return; }
     if (focusedQuest || (nearestQuest && !questRun)) { acceptQuest(focusedQuest ?? nearestQuest!); return; }
     if (questRun) { interactQuest(); return; }
@@ -975,7 +1014,7 @@ async function boot() {
   let wardrobeDetail = false;
   function refreshLobby() {
     el("lobby-progress").textContent =
-      `${save.collected.length} / 120 TOKENS  ·  ${completionCount()} / ${activities.length + courses.length + races.length + quests.length} CHALLENGES`;
+      `${save.collected.length} / 120 TOKENS  ·  ${completionCount()} / ${activities.length + courses.length + races.length + quests.length + 18} CHALLENGES`;
     el("pause-best").textContent = save.best.toLocaleString();
     el("lobby-location").textContent =
       selectedCity === "gdansk" ? "GDAŃSK / MOTŁAWA QUAY" : "RIYADH / AL MASMAK · DEERA";
@@ -1021,7 +1060,7 @@ async function boot() {
     actions.clear();
     el("pause").classList.remove("hidden");
     el("progress").textContent =
-      `${save.collected.length}/120 route tokens · ${completionCount()}/${activities.length + courses.length + races.length + quests.length} challenges completed · Best combo ${save.best.toLocaleString()}`;
+      `${save.collected.length}/120 route tokens · ${completionCount()}/${activities.length + courses.length + races.length + quests.length + 18} challenges completed · Best combo ${save.best.toLocaleString()}`;
     persist();
     refreshLobby();
     el("resume").focus();
@@ -1360,9 +1399,10 @@ async function boot() {
   };
   const keys = new Set<string>();
   const actions = new ActionBuffer();
+  const iceUI = createIcePlayUI({ move: performFigure, game: startIceGame, stop: () => { iceRun = null; canvas.focus(); }, partner: () => { companion.call(); companion.command("pairs"); save.partnerActive = companion.active; persist(); } });
   const touch = createTouchControls(actions, {
     pause, map: showMap, recover,
-    event: startNearby,
+    event: startNearby, figure: () => iceUI.open(),
     toast,
   });
   if (touch.enabled) {
@@ -1370,6 +1410,8 @@ async function boot() {
     el("help").querySelector("p")!.textContent = "Use both thumbs: keep pushing with the stick while you jump and tap tricks. Rails catch automatically. The More tray has spread eagle, stalefish, crouch, manual, slide and rail assist. Ride opens a nearby challenge; Map lets you choose any stunt spot. Portrait and landscape both work.";
     el("help").querySelector("p")!.insertAdjacentText("beforeend", " Tap Backflip to hop and flip. More has front and side flips. Hold JUMP for height, then tap a flip twice for a double off a bank.");
   }
+  el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>I · Figure on phone</b>Ice moves, games and medals</div><div><b>5–9 · 0 / L / K</b>Spins & glides · Axel / Salchow / toe loop</div>");
+  el("help").querySelector("p")!.insertAdjacentText("beforeend", " On ice, open Figure or press I for eight assisted figure moves and three arena games. Taqee mirrors moves in pairs mode. Brake cancels an element. Arena medals use game scoring.");
   let lookPointer: number | null = null, pointerX = 0, pointerY = 0;
   let dragging = false,
     lookYaw = 0,
@@ -1409,6 +1451,7 @@ async function boot() {
       return;
     if (e.code === "Escape") {
       e.preventDefault();
+      if (iceUI.opened) { iceUI.close(); canvas.focus(); return; }
       if (!el("settings-screen").classList.contains("hidden")) {
         settingsUI.close();
         return;
@@ -1446,6 +1489,9 @@ async function boot() {
       e.preventDefault();
     keys.add(e.code);
     if (!e.repeat) {
+      const figure = figureMoves.find(m => m.key === e.key.toUpperCase());
+      if (figure) performFigure(figure.id);
+      if (e.code === "KeyI") iceUI.open();
       if (e.code === "Space") actions.pressJump();
       if (e.code === "KeyZ") actions.trick("left");
       if (e.code === "KeyC") actions.trick("right");
@@ -1568,7 +1614,8 @@ async function boot() {
       previousPadUp = btn(12); previousPadDown = btn(13); previousPadFlipLeft = btn(14); previousPadFlipRight = btn(15);
       c.slide ||= btn(10);
       if (btn(9) && !previousStart) {
-        if (!el("settings-screen").classList.contains("hidden"))
+        if (iceUI.opened) { iceUI.close(); canvas.focus(); }
+        else if (!el("settings-screen").classList.contains("hidden"))
           settingsUI.close();
         else if (paused) closeMenus();
         else pause();
@@ -1604,6 +1651,7 @@ async function boot() {
   let safe = { x: initialStart.x, z: initialStart.z },
     safeTimer = 0;
   function recover() {
+    if (iceRun?.status === "playing") { iceRun.status = "failed"; iceRun.message = "Recovered. Play again for a fresh routine."; }
     if (raceSession) { startRace(raceSession.run.definition, raceSession.duet); return; }
     if (spotRun?.status === "riding") { startSpot(spotRun.course); return; }
     skater.reset(safe.x, safe.z);
@@ -1676,6 +1724,7 @@ async function boot() {
     if (raceSession && (raceSession.run.status === "countdown" || raceSession.run.status === "racing")) {
       const g = raceSession.run.target(); goal = { ...g, label: "NEXT RACE CHECKPOINT" };
     }
+    if (iceRun?.goal) goal = iceRun.goal;
     return {
       position: p,
       heading: skater.heading,
@@ -1811,7 +1860,7 @@ async function boot() {
         simTime += STEP;
         raceSession?.afterStep(); recordRace();
         tickSpot();
-        tickQuest();
+        tickQuest(); tickIceGame();
         accumulator -= STEP;
         const p = skater.body.translation();
         if (waypoint && Math.hypot(p.x - waypoint.x, p.z - waypoint.z) < 5) {
@@ -1870,7 +1919,12 @@ async function boot() {
     crowd.update(simTime, crowdPlayer(), [...(partnerActor ? [partnerActor] : []), ...(raceSession?.visuals(simTime) ?? []), ...questActors]);
     const partnerPosition = raceSession?.duet ? raceSession.rivals[0]?.skater.body.translation() : partnerActor ? companion.state.position : null;
     partnerLabel.visible = !!partnerPosition && playing && !paused;
-    if (partnerPosition) partnerLabel.position.set(partnerPosition.x, partnerPosition.y + 1.45, partnerPosition.z);
+    if (partnerPosition) {
+      partnerLabel.position.set(partnerPosition.x, partnerPosition.y + 1.45, partnerPosition.z);
+      const depth = -partnerLabel.position.clone().applyMatrix4(camera.matrixWorldInverse).z;
+      const width = Math.min(1.6, (mobileDevice ? 85 : 100) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(.1, depth) / innerHeight);
+      partnerLabel.scale.set(width, width / 4, 1); partnerLabel.visible &&= depth > .5;
+    }
     el("partner-toggle").classList.toggle("hidden", !playing || paused);
     el("partner-toggle").textContent = companion.active ? `Taqee · ${companion.mode}` : "Call Taqee";
     if (paused) el("partner-panel").classList.add("hidden");
@@ -1885,10 +1939,14 @@ async function boot() {
     spotScene.animate(simTime, p.x, p.z);
     iceScene.update(p.x, p.z);
     const currentRink = iceVenueAt(p.x, p.z, 8), onIce = !!iceAt(p.x, p.z);
-    el("ice-card").classList.toggle("hidden", !currentRink || paused || !!active || !!raceSession);
+    const visibleIceRun = iceRun?.rink.id === currentRink?.id ? iceRun : null;
+    iceUI.update(currentRink, onIce, skater.figure.view, visibleIceRun, save.iceRecords ?? emptyIceRecords, paused);
+    touch.setIce(onIce); iceEffects.update(iceRun, p, simTime, paused ? 0 : elapsed);
+    el("ice-play").hidden = !onIce;
+    el("ice-card").classList.toggle("hidden", !currentRink || paused || !!active || !!raceSession || !!visibleIceRun || iceUI.opened);
     if (currentRink) {
       el("ice-name").textContent = currentRink.name;
-      el("ice-status").textContent = onIce ? companion.active && companion.mode === "pairs" ? "Layan + Taqee · pairs skating" : "Ice blades fitted · smooth gliding" : "Skate hire · cafés · ice ahead";
+      el("ice-status").textContent = skater.figure.action ? skater.figure.message : onIce ? companion.active && companion.mode === "pairs" ? "Layan + Taqee · pairs skating" : "Ice blades fitted · smooth gliding" : "Skate hire · cafés · ice ahead";
       el("ice-enter").hidden = onIce;
       el("ice-partner").textContent = companion.active && companion.mode === "pairs" ? "Recall Taqee" : "Skate with Taqee";
     }
@@ -1896,9 +1954,9 @@ async function boot() {
     updateRaceCard();
     updateQuestCard();
     if (currentRink) for (const id of ["spot-card", "quest-card", "race-card"]) el(id).classList.add("hidden");
-    if (!el("partner-panel").classList.contains("hidden")) for (const id of ["spot-card", "quest-card", "race-card", "ice-card"]) el(id).classList.add("hidden");
+    if (!el("partner-panel").classList.contains("hidden")) for (const id of ["spot-card", "quest-card", "race-card", "ice-card", "ice-run-card"]) el(id).classList.add("hidden");
     const rideButton = document.querySelector<HTMLButtonElement>('#touch-controls [data-command="event"]');
-    if (rideButton) rideButton.textContent = currentRink ? onIce ? "Partner" : "Ice" : raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : questRun ? "Interact" : nearestQuest || focusedQuest ? "Quest" : "Ride";
+    if (rideButton) rideButton.textContent = currentRink ? iceRun?.targetMove ? "Move" : onIce ? "Partner" : "Ice" : raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : questRun ? "Interact" : nearestQuest || focusedQuest ? "Quest" : "Ride";
     rider.position.set(p.x, p.y - 0.83, p.z);
     rider.rotation.y =
       skater.heading +
@@ -1916,7 +1974,7 @@ async function boot() {
       : skater.heading +
         skater.airRotation +
         skater.landingYawOffset +
-        (skater.switchStance ? Math.PI : 0);
+        (skater.switchStance ? Math.PI : 0) + skater.figure.rotation;
     rider.rotation.order = "YXZ";
     rider.rotation.x = cinematic ? 0 : skater.airPitch + skater.landingPitchOffset;
     rider.rotation.z = cinematic ? 0 : skater.airRoll + skater.landingRollOffset;
@@ -2099,7 +2157,7 @@ async function boot() {
         : "";
       el("trick").textContent = skater.liveTrick || (skater.combo ? skater.lastTrick : "");
       el("hint").innerHTML =
-        nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
+        onIce ? "<kbd>I</kbd> Figure moves & games · <kbd>5–9</kbd> spins / glides · <kbd>0 / L / K</kbd> jumps · <kbd>S</kbd> cancel · <kbd>M</kbd> map" : nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
           ? `<kbd>Enter / Y</kbd> ${nearest.district} · ${nearest.kind.toUpperCase()}`
           : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>1–4</kbd> flips · <kbd>Z/C</kbd> spin · <kbd>F</kbd> grab · <kbd>J</kbd> quests · <kbd>H</kbd> controls · <kbd>M</kbd> map";
       if (active) {
@@ -2151,6 +2209,7 @@ async function boot() {
           companion: companion.state,
           rink: iceVenueAt(p.x, p.z) ? { id: iceVenueAt(p.x, p.z)!.id, onIce: !!iceAt(p.x, p.z) } : null,
           iceArenas: iceRinks.length,
+          figure: skater.figure.view, iceGame: iceRun?.view ?? null, iceRecords: { ...save.iceRecords },
           position: { ...p },
           speed: skater.speed,
           grounded: skater.grounded,

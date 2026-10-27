@@ -7,6 +7,7 @@ import { CrowdDirector, type CrowdPerson, type CrowdPlayer } from "./crowd";
 import { solve } from "./rider";
 import { RAPIER } from "./physics";
 import { iceAt } from "./ice-rinks";
+import { figurePose } from "./figure-skating";
 import { createSkateHelmet, attachProtectivePads, helmetShellGeometry, helmetLinerGeometry, padGeometry, FAIR_SKIN_TONES } from "./safety-gear";
 
 const colors = [0xd58759, 0x799fb1, 0xb6a0bb, 0x71865d, 0xe0c271, 0x9ab1a2, 0xc27170, 0xd9d2bd];
@@ -132,6 +133,9 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     if (p.airPitch || p.airRoll) { const hip = new THREE.Vector3(0, 0.9 * height, 0).applyQuaternion(rig.group.quaternion); rig.group.position.set(p.x - hip.x, p.ground + 0.9 * height - hip.y, p.z - hip.z); }
     rig.body.position.y = skating ? p.crouching ? -0.03 : 0.07 : Math.abs(stride) * 0.025 * moving + 0.025;
     rig.body.rotation.x = p.crouching ? 0.15 : 0;
+    const figure = p.figure && p.figure.mix > .01 ? figurePose(p.figure) : null;
+    rig.body.position.z = 0;
+    if (figure) { rig.body.position.y = figure.bodyY + .95 * (1 - Math.cos(figure.pitch)); rig.body.position.z = -.95 * Math.sin(figure.pitch); rig.body.rotation.x = figure.pitch; }
     rig.group.updateMatrixWorld(true);
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(rig.group.quaternion);
     rig.legs.forEach((leg, i) => {
@@ -139,9 +143,10 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       const local = new THREE.Vector3(side * (0.12 + (skating ? Math.max(0, phase) * 0.22 * moving : 0)), 0.22 + (skating ? Math.max(0, -phase) * 0.08 : Math.max(0, phase) * 0.1) * moving,
         skating ? phase * 0.09 * moving : phase * 0.28 * moving);
       if (p.grabbing) local.set(side * 0.18, 0.48, 0.1);
+      if (figure) local.set(figure.feet[i].x, figure.feet[i].y - .03, figure.feet[i].z);
       const target = rig.group.localToWorld(local.clone()); solve(leg[0], leg[1], leg[2], target, forward);
       rig.boots[i].group.position.copy(local).add(new THREE.Vector3(0, -0.22, 0));
-      rig.boots[i].group.rotation.y = skating ? side * Math.max(0, phase) * 0.25 * moving : 0;
+      rig.boots[i].group.rotation.y = figure ? figure.feet[i].yaw : skating ? side * Math.max(0, phase) * 0.25 * moving : 0;
       rig.boots[i].group.geometry = onIce ? iceSkateGeometry : skating ? skateGeometry : shoeGeometry;
       rig.boots[i].group.material = onIce ? iceBootMaterial : dark;
     });
@@ -152,6 +157,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       if (p.action === "phone" && i === 0) hand.set(0.12, 1.47, 0.16);
       if (p.grabbing && i === 0) hand.set(0.2, 0.62, 0.15);
       if (p.action === "wave" || p.action === "cheer" || (p.following && p.reaction > 0)) hand.set(side * (0.35 + Math.sin(p.age * 7) * 0.09), 1.78, 0.03);
+      if (figure) hand.set(figure.hands[i].x, figure.hands[i].y, figure.hands[i].z);
       solve(arm[0], arm[1], arm[2], rig.group.localToWorld(hand.clone()), forward.clone().negate());
       if (i === 0) { rig.phone.position.copy(hand); rig.phone.position.z += 0.025; rig.cup.position.copy(hand); rig.cup.position.y += 0.035; }
     });

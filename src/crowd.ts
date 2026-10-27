@@ -2,6 +2,7 @@ import { clearGround, hash, inWorld } from "./world";
 import { spots } from "./spots";
 import { quests } from "./quests";
 import { iceRinks } from "./ice-rinks";
+import type { FigureView } from "./figure-skating";
 
 export type CrowdRole = "skater" | "walker" | "social" | "vendor" | "spectator";
 export type CrowdAction = "push" | "coast" | "walk" | "talk" | "phone" | "wave" | "cheer" | "yield" | "rideAlong";
@@ -16,6 +17,7 @@ export type CrowdPerson = CrowdPoint & {
   airPitch?: number;
   airRoll?: number;
   grabbing?: boolean;
+  figure?: FigureView;
 };
 export type CrowdPlayer = CrowdPoint & { heading: number; speed: number; score: number };
 type Probe = (x: number, z: number, fromX: number, fromZ: number) => number | null;

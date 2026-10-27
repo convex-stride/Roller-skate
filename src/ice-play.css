@@ -1,0 +1,23 @@
+#ice-lab [hidden], #ice-run-card [hidden] { display: none !important; }
+#ice-lab { position: fixed; z-index: 20; bottom: 30px; left: 32px; width: min(440px, calc(100vw - 40px)); background: #15323df5; color: #edf9ff; border: 1px solid #92d3e0; padding: 12px; box-shadow: 0 12px 40px #00131d70; max-height: 65dvh; overflow: auto; }
+.ice-lab-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .1em; }
+#ice-lab-close { min-width: 36px; min-height: 36px; padding: 5px; }
+#ice-lab nav { display: flex; gap: 5px; margin: 8px 0; } #ice-lab nav button { flex: 1; font-size: 11px; padding: 8px; }
+#ice-lab nav button[aria-pressed=true] { color: #143844; background: #c6edf3; }
+.figure-moves { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.figure-moves button { min-height: 58px; padding: 7px; font-size: 11px; text-align: left; }
+.figure-moves small { display: block; font-size: 9px; opacity: .75; margin-top: 4px; }
+.ice-game-choices { display: grid; gap: 7px; }
+.ice-game-choices button { text-align: left; padding: 10px; }
+.ice-game-choices b, .ice-game-choices small { display: block; } .ice-game-choices small { font-size: 11px; margin-top: 4px; line-height: 1.4; }
+.ice-lab-tip { font-size: 10px; line-height: 1.4; margin: 8px 0 0; }
+#ice-medals { max-height: 220px; overflow: auto; } .ice-medal-venue { padding: 8px 0; border-bottom: 1px solid #acd6e82b; } .ice-medal-venue b { display: block; font-size: 12px; } .ice-medal-venue span { display: block; font-size: 10px; margin-top: 4px; }
+#ice-run-card { position: absolute; top: 110px; left: 32px; width: 280px; padding: 13px; background: #14313df0; border: 1px solid #98dce7; border-top: 3px solid #f7d989; color: #edf9ff; pointer-events: auto; }
+#ice-run-card small { display: block; font-size: 9px; color: #b3dce8; } #ice-run-title { display: block; font-size: 19px; margin: 6px 0; } #ice-run-clock { font-size: 11px; color: #f4d88c; } #ice-run-goal { display: block; font-size: 14px; margin-top: 8px; }
+#ice-run-detail { font-size: 11px; line-height: 1.4; margin: 7px 0; } #ice-run-card > div { display: flex; gap: 5px; flex-wrap: wrap; } #ice-run-card button { padding: 8px; min-height: 38px; font-size: 10px; } #ice-run-next { color: #14323d; background: #e5e9b0; }
+body.touch-play #ice-lab { left: auto; right: 14px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 164px); width: min(350px, calc(100vw - 28px)); padding: 9px; max-height: calc(100dvh - 220px); }
+body.touch-play .figure-moves button { min-height: 48px; font-size: 10px; padding: 6px; }
+body.touch-play #ice-lab nav button { min-height: 36px; padding: 6px; }
+body.touch-play #ice-run-card { top: 65px; left: 12px; width: min(230px, calc(100vw - 152px)); padding: 10px; }
+body.touch-play #ice-run-title { font-size: 15px; } body.touch-play #ice-run-detail { font-size: 10px; } body.touch-play #ice-run-card button { min-height: 42px; }
+@media (orientation: landscape) and (max-height: 550px) { body.touch-play #ice-lab { width: 350px; max-height: calc(100dvh - 195px); } body.touch-play .ice-lab-tip { display: none; } body.touch-play #ice-lab .figure-moves button { min-height: 42px; } body.touch-play #ice-run-card { top: 60px; width: 215px; } body.touch-play #ice-run-detail { display: none; } }

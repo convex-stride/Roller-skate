@@ -21,9 +21,31 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Ice.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.20.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Figures.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.21.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
+
+## Figure moves and arena games
+
+Version 0.21 adds eight assisted figure-skating moves at every ice arena. Open **Map → Ice arenas**, travel to a rink, then choose **Moves & games** or press **I**. On phone, the primary Backflip button becomes **Figure** while on ice; inline flips remain in **More**. Tap a move to begin its assisted entry, and brake to cancel. Leave room on the ice for travelling moves.
+
+| Keys | Moves |
+| --- | --- |
+| 5 / 6 / 7 | Upright, sit and camel spins |
+| 8 / 9 | Spiral and spread-eagle glides |
+| 0 / L / K | Single Axel, single Salchow and single toe loop |
+
+The moves animate the rider's arms, legs and torso, with a preparation, performance and exit. Spins slow the skater before rotating; glides need sustained momentum; jumps use the existing Rapier gravity, contact, takeoff and landing calculation with assisted rotation. Completed moves feed the combo system, and interrupted moves do not receive the figure bonus. These are accessible game interpretations with assisted entries and game scoring, rather than an official competition judging simulation.
+
+**Games** offers three activities in all six arenas:
+
+- **Spotlight routine:** perform four elements in order under a moving pool of light. Programs vary by arena.
+- **Neon ribbon run:** skate through eight ordered glowing gates, follow the next gate on the minimap, and draw a cyan trail across the ice.
+- **Taqee mirror duet:** Taqee enters pairs mode and mirrors the figure poses. Both skaters must finish each matching element within 2.5 seconds of each other and stay within 12 metres.
+
+Timed rounds award bronze, silver or gold medals and a completion bonus with a confetti celebration. The **Medals** tab tracks 18 arena records; best score, fastest completion and highest medal persist alongside existing saves and export/import. New arena medals also count toward jacket unlocks. **Perform element** on the challenge card (or **Move** on phone) runs the next required move. **Free skate** leaves a round, and **Play again** restarts it.
+
+`npm run test:figures` drives all eight keyboard moves, a complete routine and mirror duet, medal reload, neon gates and phone controls/layouts in Chromium. Unit tests exercise every move in Rapier, failed/cancelled moves, ordered gates, paired timing and stored-record validation.
 
 ## Mall ice arenas and Taqee pairs skating
 

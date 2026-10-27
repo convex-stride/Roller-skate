@@ -5,6 +5,7 @@ import modelUrl from "./assets/rider-base.glb?url";
 import type { Skater, Controls } from "./physics";
 import { createHijab } from "./headwear";
 import { createSkateHelmet, attachProtectivePads, FAIR_SKIN_TONES } from "./safety-gear";
+import { figurePose } from "./figure-skating";
 
 type Pose = { p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 };
 const up = new THREE.Vector3(0, 1, 0);
@@ -361,6 +362,7 @@ export async function createRider(outfit: number) {
       grabBlend += ((!cinematic && s.grabbing ? 1 : 0) - grabBlend) * blend;
       const tuck = tuckBlend,
         compression = cinematic ? 0 : s.landingCompression;
+      const figure = !cinematic && s.figure.mix > .01 ? figurePose(s.figure.view) : null;
       const physicalPosition = s.body.translation();
       const floor = groundHeight(physicalPosition.x, physicalPosition.z);
       shadow.visible = floor !== null && !s.grinding;
@@ -378,6 +380,8 @@ export async function createRider(outfit: number) {
         -0.01,
         cinematic ? 0 : -s.leanAngle * 0.65,
       );
+      body.position.z = 0;
+      if (figure) { body.position.y = figure.bodyY + .95 * (1 - Math.cos(figure.pitch)); body.position.z = -.95 * Math.sin(figure.pitch); body.rotation.x = figure.pitch; }
       group.updateMatrixWorld(true);
       group.getWorldQuaternion(worldQ);
       const forward = pole.clone().applyQuaternion(worldQ);
@@ -407,6 +411,7 @@ export async function createRider(outfit: number) {
           desiredFoot.x = side * (s.grindStyle === "Royale grind" ? 0.045 : 0.09);
           desiredFoot.z = side * 0.13;
         }
+        if (figure) desiredFoot.set(figure.feet[i].x, figure.feet[i].y, figure.feet[i].z);
         const groundPoint = group.localToWorld(
           new THREE.Vector3(desiredFoot.x, 0, desiredFoot.z),
         );
@@ -418,7 +423,7 @@ export async function createRider(outfit: number) {
         const localTarget = desiredFoot.clone(),
           target = group.localToWorld(desiredFoot.clone());
         solve(l[0], l[1], l[2], target, forward);
-        const brakingYaw =
+        const brakingYaw = figure ? figure.feet[i].yaw :
           s.grinding ? (s.grindStyle === "Royale grind" ? Math.PI / 2 : i === 0 ? Math.PI / 2 : 0) :
           !cinematic && s.grounded ? (i === 1 ? s.brakePressure * 0.52 : 0) + s.slideAmount * 0.95 : 0;
         orient(
@@ -446,6 +451,7 @@ export async function createRider(outfit: number) {
               0.05 + grabBlend * (s.grabPose === "stale" ? -0.35 : 0.2) + Math.sin(s.pushPhase + i * Math.PI) * 0.055 * s.pushStrength,
             ),
           );
+        if (figure) arm.copy(group.localToWorld(new THREE.Vector3(figure.hands[i].x, figure.hands[i].y, figure.hands[i].z)));
         solve(a[0], a[1], a[2], arm, forward.clone().negate());
       });
       wheelAngle += (s.speed * dt) / 0.041;
