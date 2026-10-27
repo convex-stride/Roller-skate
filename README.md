@@ -21,9 +21,19 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Polish.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.22.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Railflow.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.23.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
+
+## Rail flow, shuffled starts and ride presentation
+
+Version 0.23 fixes grinds slowing to zero while the rider remains locked on the rail. Rail momentum is stored independently of transient contact velocity, friction is lower, and **W / Up** (or the phone stick) adds assisted speed. Slow aligned catches work when Push or Rail assist is held; fast perpendicular approaches still do not catch. Backward grinds keep their direction. A blocked grind releases after a short stall, and scoring counts actual travel rather than requested motion. **Space / JUMP** pops off; **S / Brake** exits. Rail assistance is a game mechanic rather than a full simulation of pumping on a real rail.
+
+The grind display shows style, actual distance, progress along the rail and remaining distance. Small contact particles follow the skates; reduced motion hides them. On phone, the main stunt button becomes **Royale** while grinding, and returns to Backflip or Figure afterwards. Pause → **Practise rails** takes Layan to a clear approach in the current city, for a repeatable practice route.
+
+Free-skate sessions and city quick travel now use a shuffled bag of curated landmark viewpoints and street locations. Every selected spot has a clear run-out, and locations do not repeat within a bag. The last choice is remembered so reloading avoids the same start. **Shuffle start** in the lobby previews another location; returning to the lobby also chooses a fresh start. Arrival titles introduce the area. Resume keeps the current location; recovery, races, quests, chosen map destinations and practice approaches retain their defined locations.
+
+`npm run test:rails` checks shuffled starts/reload, both practice approaches, real jump-on-rail catches, moving royale grinds, pop-outs and stunt landings. `npm run test:phone-rails` checks the same core controls with multi-touch, contextual Royale, the grind display and phone layouts. Rapier regressions cover slow catches, backward motion, pumping and blocked rails, and spawn tests check clear ground and run-outs.
 
 ## Movement polish, variety and love fireworks
 

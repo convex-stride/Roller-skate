@@ -88,6 +88,10 @@ export class Skater {
   figure = new FigureSkating();
   style = new StyleChain();
   private scoredFigure = 0;
+  private grindSpeed = 0;
+  private grindDirection = 1;
+  private grindLastAlong = 0;
+  private grindStallTime = 0;
   manualActive = false;
   slideAmount = 0;
   grabPose: "grab" | "tweak" | "star" | "stale" | null = null;
@@ -123,12 +127,19 @@ export class Skater {
     const v = this.body.linvel();
     return Math.hypot(v.x, v.z);
   }
+  get railView() {
+    if (!this.grinding) return null;
+    const r = this.grinding, p = this.body.translation(), along = r.axis === "x" ? p.x - r.x : p.z - r.z;
+    const remaining = Math.max(0, r.length / 2 - this.grindDirection * along);
+    return { direction: this.grindDirection, speed: this.speed, distance: this.grindingDistance, remaining, progress: Math.max(0, Math.min(1, 1 - remaining / r.length)) };
+  }
   get grabbing() { return this.grabTimer > 0 && !this.grounded; }
   reset(x: number, z: number) {
     this.figure.reset(); this.style.reset();
     this.body.setTranslation({ x, y: 1.1, z }, true);
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     this.grinding = null;
+    this.grindSpeed = this.grindStallTime = 0;
     this.grindingDistance = 0;
     this.railCooldown = 0;
     this.grabPerformed = false;
@@ -263,12 +274,17 @@ export class Skater {
         const alignment = Math.abs(alongSpeed) / Math.max(0.01, this.speed);
         const feet = p.y - 0.83;
         const reach = Math.max(0.12, -v.y * dt + 0.04);
+        const headingAlong = r.axis === "x" ? Math.sin(this.heading) : Math.cos(this.heading);
+        const slowCatch = this.speed < 1.2 && (c.grind || c.throttle > .2) && Math.abs(headingAlong) > .9;
         if (Math.abs(side) < (c.grind ? 0.65 : 0.42) &&
             Math.abs(along) < r.length / 2 - 0.15 &&
             feet >= r.y - 0.18 && feet <= r.y + reach &&
-            Math.abs(alongSpeed) > 1.2 && alignment > 0.78) {
+            (Math.abs(alongSpeed) > .6 && alignment > 0.78 || slowCatch)) {
           this.grinding = r;
           this.grindingDistance = 0;
+          this.grindDirection = Math.abs(alongSpeed) > .1 ? Math.sign(alongSpeed) : Math.sign(headingAlong) || 1;
+          this.grindSpeed = Math.max(Math.abs(alongSpeed), slowCatch ? 1.6 : 0);
+          this.grindLastAlong = along; this.grindStallTime = 0;
           this.grindStyle = c.tricks.includes("tweak") ? "Royale grind" : "Soul grind";
           this.normal = { x: 0, y: 1, z: 0 };
           break;
@@ -375,8 +391,11 @@ export class Skater {
       const r = this.grinding;
       const side = r.axis === "x" ? p.z - r.z : p.x - r.x;
       const along = r.axis === "x" ? p.x - r.x : p.z - r.z;
+      const travelled = Math.abs(along - this.grindLastAlong);
+      this.grindingDistance += travelled; this.grindLastAlong = along;
+      this.grindStallTime = travelled < .002 && this.grindSpeed > .8 ? this.grindStallTime + dt : 0;
       if (
-        c.brake > 0.5 ||
+        c.brake > 0.5 || this.grindStallTime > .45 || this.grindSpeed < .3 ||
         Math.abs(along) > r.length / 2 ||
         Math.abs(side) > 1.2
       ) {
@@ -389,13 +408,10 @@ export class Skater {
         this.liveTrick = "";
         this.railCooldown = 0.45;
       } else {
-        const direction =
-          r.axis === "x" ? (v.x >= 0 ? 1 : -1) : v.z >= 0 ? 1 : -1;
-        const speed = Math.max(
-          0,
-          Math.abs(r.axis === "x" ? v.x : v.z) - dt * 0.65,
-        );
-        this.grindingDistance += speed * dt;
+        const direction = this.grindDirection;
+        // Accessible balance assistance: carry entry momentum, and use Push to pump.
+        this.grindSpeed = Math.min(14, Math.max(0, this.grindSpeed + (c.throttle * 1.8 - (c.crouch ? .08 : .16)) * dt));
+        const speed = this.grindSpeed;
         this.body.setTranslation(
           {
             x: r.axis === "x" ? p.x : r.x,

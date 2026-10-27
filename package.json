@@ -1,6 +1,6 @@
 {
   "name": "layans-skate",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -29,7 +29,8 @@
     "test:night": "node tools/night-smoke.mjs",
     "test:ice": "node tools/ice-smoke.mjs",
     "test:figures": "node tools/figure-smoke.mjs",
-    "test:polish": "node tools/polish-smoke.mjs"
+    "test:polish": "node tools/polish-smoke.mjs",
+    "test:phone-rails": "node tools/phone-rails-smoke.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.0",

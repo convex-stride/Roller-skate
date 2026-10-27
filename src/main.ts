@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { cityReflections, balticFoliage } from "./world-art";
+import { SpawnDeck, type FreeSpawn } from "./spawn-points";
+import { createRidePresentation } from "./ride-presentation";
 import { batchGroup } from "./instance-batches";
 import { LoveFireworks } from "./fireworks";
 import { NightLighting, nightGeometries } from "./night";
@@ -70,7 +72,7 @@ app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></c
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.22 / FIND YOUR FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.23 / RAIL FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
@@ -228,7 +230,10 @@ async function boot() {
   const fireworks = new LoveFireworks(scene, mobileDevice);
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   world.timestep = STEP;
-  const initialStart = cityStarts.gdansk;
+  let spawnStorage: Storage | undefined; try { spawnStorage = localStorage; } catch {}
+  const spawnDeck = new SpawnDeck(Math.random, spawnStorage);
+  const initialStart = spawnDeck.next("gdansk");
+  let selectedSpawn: FreeSpawn = initialStart;
   const skater = new Skater(world, initialStart.x, initialStart.z);
   skater.heading = initialStart.heading;
   const mats = new Map<string, THREE.MeshStandardMaterial>();
@@ -568,6 +573,7 @@ async function boot() {
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const companion = new Companion(world, skater);
   const iceEffects = createIcePlayScene(scene);
+  const ridePresentation = createRidePresentation(scene, mobileDevice);
   let iceRun: IceGame | null = null, iceAwarded = false, iceAttempt = 0;
   const emptyIceRecords: IceRecords = {};
   let restorePartner = !!save.partnerActive;
@@ -1013,7 +1019,7 @@ async function boot() {
       `${save.collected.length} / 120 TOKENS  ·  ${completionCount()} / ${activities.length + courses.length + races.length + quests.length + 18} CHALLENGES`;
     el("pause-best").textContent = save.best.toLocaleString();
     el("lobby-location").textContent =
-      selectedCity === "gdansk" ? "GDAŃSK / MOTŁAWA QUAY" : "RIYADH / AL MASMAK · DEERA";
+      `${selectedCity === "gdansk" ? "GDAŃSK" : "RIYADH"} / ${selectedSpawn.name.toUpperCase()}`;
     el("featured-event").querySelector("strong")!.textContent =
       selectedCity === "gdansk" ? "MOTŁAWA DASH" : "OLAYA SPRINT";
     el("featured-event").querySelector(".card-detail")!.textContent = "Street race · Beat three local riders";
@@ -1067,22 +1073,31 @@ async function boot() {
     active = null;
     gate.visible = false;
     el("event").classList.add("hidden");
-    const start = cityStarts[city];
+    const start = spawnDeck.next(city); selectedSpawn = start;
     skater.reset(start.x, start.z);
     skater.heading = start.heading;
     safe = { x: start.x, z: start.z };
     stream(true);
     closeMenus();
     snapCamera();
-    toast(
-      cityStarts[city].name,
-    );
+    ridePresentation.arrive(start);
+    toast(start.name);
   }
   el("play").onclick = () => {
+    ridePresentation.arrive(selectedSpawn);
     closeMenus();
     snapCamera();
     toast(mobileDevice ? "Tap Backflip to hop + flip · More has front/side flips · hold JUMP for height" : "1–4 hop + flip · Space for height · Z/C spin · F grab · J → Flip challenges");
     if (preferences.audio) el("audio").dispatchEvent(new Event("change"));
+  };
+  el("lobby-shuffle").onclick = () => previewCity(selectedCity);
+  el("rail-practice").onclick = () => {
+    const city = cityAt(skater.body.translation().x), start = cityStarts[city];
+    stopRace(); stopSpot(); active = null; iceRun = null; waypoint = null; focusedQuest = null;
+    gate.visible = false; el("event").classList.add("hidden"); iceUI.close();
+    skater.reset(start.x,start.z); skater.heading = start.heading; safe = { x:start.x,z:start.z }; lookYaw = 0; lookPitch = .1;
+    stream(true); closeMenus(); snapCamera(); ridePresentation.arrive({city,name:start.name},true);
+    toast(mobileDevice ? "Push toward the rail · JUMP onto it · keep pushing to carry speed" : "Push toward the rail · Space to catch · W keeps speed · Space pops off");
   };
   el("resume").onclick = closeMenus;
   el("gdansk").onclick = () => travel("gdansk");
@@ -1140,7 +1155,7 @@ async function boot() {
     stopRace();
     stopSpot();
     selectedCity = city;
-    const start = cityStarts[city];
+    const start = spawnDeck.next(city); selectedSpawn = start;
     skater.reset(start.x, start.z);
     skater.heading = start.heading;
     safe = { x: start.x, z: start.z };
@@ -1331,6 +1346,7 @@ async function boot() {
       String(next.hudScale / 100),
     );
     document.body.classList.toggle("high-contrast", next.contrast);
+    document.body.classList.toggle("reduced-motion", next.reducedMotion);
     document.body.classList.toggle("hud-off", !next.showHud);
   }
   const settingsUI = bindPreferences(
@@ -1943,7 +1959,8 @@ async function boot() {
     const currentRink = iceVenueAt(p.x, p.z, 8), onIce = !!iceAt(p.x, p.z);
     const visibleIceRun = iceRun?.rink.id === currentRink?.id ? iceRun : null;
     iceUI.update(currentRink, onIce, skater.figure.view, visibleIceRun, save.iceRecords ?? emptyIceRecords, paused, skater.grounded, !!companion.skater?.figure.action);
-    touch.setIce(onIce); iceEffects.update(iceRun, p, simTime, paused ? 0 : elapsed);
+    ridePresentation.update(skater, playing, paused, preferences.reducedMotion, simTime);
+    touch.setIce(onIce, !!skater.grinding); iceEffects.update(iceRun, p, simTime, paused ? 0 : elapsed);
     el("ice-play").hidden = !onIce;
     el("ice-card").classList.toggle("hidden", !currentRink || paused || !!active || !!raceSession || !!visibleIceRun || iceUI.opened);
     if (currentRink) {
@@ -2161,7 +2178,7 @@ async function boot() {
         : "";
       el("trick").textContent = skater.liveTrick || (skater.combo ? skater.lastTrick : "");
       el("hint").innerHTML =
-        onIce ? "<kbd>I</kbd> Figure moves & games · <kbd>5–9</kbd> spins / glides · <kbd>0 / L / K</kbd> jumps · <kbd>S</kbd> cancel · <kbd>M</kbd> map" : nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
+        skater.grinding ? "<kbd>W / ↑</kbd> keep speed · <kbd>Space</kbd> pop · <kbd>S</kbd> exit · <kbd>F / X</kbd> change grind style" : onIce ? "<kbd>I</kbd> Figure moves & games · <kbd>5–9</kbd> spins / glides · <kbd>0 / L / K</kbd> jumps · <kbd>S</kbd> cancel · <kbd>M</kbd> map" : nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
           ? `<kbd>Enter / Y</kbd> ${nearest.district} · ${nearest.kind.toUpperCase()}`
           : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>1–4</kbd> flips · <kbd>Z/C</kbd> spin · <kbd>F</kbd> grab · <kbd>J</kbd> quests · <kbd>H</kbd> controls · <kbd>M</kbd> map";
       if (active) {
@@ -2218,7 +2235,8 @@ async function boot() {
           speed: skater.speed,
           grounded: skater.grounded,
           grinding: skater.grinding ? { ...skater.grinding } : null,
-          grindingDistance: skater.grindingDistance,
+          grindingDistance: skater.grindingDistance, railFlow: skater.railView,
+          freeSpawn: { ...selectedSpawn },
           spot: spotRun ? { id: spotRun.course.id, gate: spotRun.gate, elapsed: spotRun.elapsed, status: spotRun.status, medal: spotRun.medal } : null,
           spotStamps: courses.filter(c => save.records[c.id] !== undefined).length,
           parks: spots.length,
