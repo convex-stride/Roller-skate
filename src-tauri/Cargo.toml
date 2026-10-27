@@ -1,0 +1,16 @@
+[package]
+name = "layans-skate"
+version = "0.23.0"
+description = "Layan's Skate desktop and Android host"
+authors = ["Layan's Skate contributors"]
+edition = "2021"
+
+[lib]
+name = "layans_skate_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

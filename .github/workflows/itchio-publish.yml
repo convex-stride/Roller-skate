@@ -1,0 +1,94 @@
+name: Publish approved artifacts to itch.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: GitHub Actions build run ID with artifacts
+        required: true
+        type: string
+      itch_target:
+        description: itch.io target, e.g. username/layans-skate
+        required: true
+        type: string
+      upload_browser:
+        description: Upload HTML5 web build
+        type: boolean
+        default: true
+      upload_windows:
+        description: Upload Windows MSI and EXE
+        type: boolean
+        default: true
+      upload_android:
+        description: Upload production-signed Android APK (not debug)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publish:
+    # This workflow never publishes on commits or pull requests.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate itch.io credentials
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          test -n "$BUTLER_API_KEY" || { echo "::error::Add BUTLER_API_KEY to repository secrets"; exit 1; }
+      - name: Download selected build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.build_run_id }}
+          WEB: ${{ inputs.upload_browser }}
+          WIN: ${{ inputs.upload_windows }}
+          ANDROID: ${{ inputs.upload_android }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::Build run ID must be numeric"; exit 1; }
+          mkdir -p artifacts
+          if [[ "$WEB" == true ]]; then
+            gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -n layans-skate-web -D artifacts/web
+          fi
+          if [[ "$WIN" == true ]]; then
+            gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -n layans-skate-windows -D artifacts/windows
+          fi
+          if [[ "$ANDROID" == true ]]; then
+            gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -n layans-skate-android-release -D artifacts/android
+          fi
+      - name: Install itch.io butler
+        run: |
+          curl -fsSL https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o butler.zip
+          unzip -q butler.zip -d "$RUNNER_TEMP/butler"
+          chmod +x "$RUNNER_TEMP/butler/butler"
+          echo "$RUNNER_TEMP/butler" >> "$GITHUB_PATH"
+      - name: Publish only selected channels
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          TARGET: ${{ inputs.itch_target }}
+          WEB: ${{ inputs.upload_browser }}
+          WIN: ${{ inputs.upload_windows }}
+          ANDROID: ${{ inputs.upload_android }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$ ]] || { echo "::error::Use username/game-slug as itch target"; exit 1; }
+          if [[ "$WEB" == true ]]; then
+            test -f artifacts/web/layans-skate-web.zip
+            mkdir -p artifacts/web-expanded
+            unzip -q artifacts/web/layans-skate-web.zip -d artifacts/web-expanded
+            test -f artifacts/web-expanded/index.html
+            butler push artifacts/web-expanded "$TARGET:html5"
+          fi
+          if [[ "$WIN" == true ]]; then
+            test -d artifacts/windows
+            test "$(find artifacts/windows -name '*.msi' | wc -l)" -eq 1
+            mkdir -p artifacts/windows-release
+            find artifacts/windows -type f \( -name "*.msi" -o -name "*.exe" \) -exec cp {} artifacts/windows-release/ \;
+            butler push artifacts/windows-release "$TARGET:windows"
+          fi
+          if [[ "$ANDROID" == true ]]; then
+            test -f artifacts/android/Layans-Skate-v0.23.0-android-release.apk
+            butler push artifacts/android/Layans-Skate-v0.23.0-android-release.apk "$TARGET:android"
+          fi
