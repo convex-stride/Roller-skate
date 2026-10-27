@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { cityReflections, balticFoliage } from "./world-art";
+import { NightLighting, nightGeometries } from "./night";
 import { surface, waterMaterial, waterTime } from "./world-materials";
 import { RAPIER, Skater, STEP, idle, type Rail } from "./physics";
 import { ActionBuffer, createGamepadReader } from "./input";
@@ -210,6 +211,7 @@ async function boot() {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = .035;
   scene.add(sun, sun.target);
+  const nightLighting = new NightLighting(scene, mobileDevice);
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   world.timestep = STEP;
   const initialStart = cityStarts.gdansk;
@@ -248,7 +250,7 @@ async function boot() {
   leafGeo.setIndex(leafIndices);
   leafGeo.computeVertexNormals();
   const foliage = balticFoliage();
-  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo, foliage.geometry, ...buildingGeometries];
+  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo, foliage.geometry, ...buildingGeometries, ...nightGeometries];
   const streetBankMeshes = new Map<string, THREE.BufferGeometry>();
   const collidersByGroup = new Map<THREE.Group, RAPIER.Collider[]>();
   function box(
@@ -1964,13 +1966,17 @@ async function boot() {
       camera.updateProjectionMatrix();
     }
     const blend = THREE.MathUtils.smoothstep(p.x, -180, 180);
+    const night = preferences.nightMode;
     waterTime.value = simTime;
-    scene.environment = blend > .5 ? reflections.riyadh : reflections.gdansk;
-    scene.environmentIntensity = THREE.MathUtils.lerp(.48, .6, blend);
+    scene.environment = night ? (blend > .5 ? reflections.nightRiyadh : reflections.nightGdansk) : (blend > .5 ? reflections.riyadh : reflections.gdansk);
+    scene.environmentIntensity = night ? .7 : THREE.MathUtils.lerp(.48, .6, blend);
+    skyDome.visible = !night;
+    nightLighting.update(night, p, camera.position, [training, ...chunks.values()], elapsed);
     const sky = new THREE.Color(0x9dbdc4).lerp(
       new THREE.Color(0xd9c3a0),
       blend,
     );
+    if (night) sky.setHex(blend > .5 ? 0x101421 : 0x080f21);
     (scene.background as THREE.Color).copy(sky);
     (scene.fog as THREE.Fog).color.copy(sky);
     skyDome.material.uniforms.turbidity.value = THREE.MathUtils.lerp(3, 9, blend);
@@ -1978,11 +1984,12 @@ async function boot() {
     skyDome.material.uniforms.mieCoefficient.value = THREE.MathUtils.lerp(0.003, 0.015, blend);
     skyDome.material.uniforms.sunPosition.value.set(-0.45, THREE.MathUtils.lerp(0.8, 0.42, blend), 0.45).multiplyScalar(450000);
     skyDome.material.uniforms.cloudCoverage.value = THREE.MathUtils.lerp(.3, .04, blend);
-    hemi.color.setHex(blend > 0.5 ? 0xf6dfba : 0xd5e6ff);
-    hemi.groundColor.setHex(blend > 0.5 ? 0x9c794b : 0x627b78);
-    sun.intensity = THREE.MathUtils.lerp(2.2, 3.6, blend);
-    sun.color.setHex(blend > 0.5 ? 0xffd49a : 0xe5efff);
-    sun.position.set(p.x - 60, THREE.MathUtils.lerp(110, 55, blend), p.z + 60);
+    hemi.intensity = night ? .5 : .8;
+    hemi.color.setHex(night ? 0xa4bde2 : blend > 0.5 ? 0xf6dfba : 0xd5e6ff);
+    hemi.groundColor.setHex(night ? 0x182336 : blend > 0.5 ? 0x9c794b : 0x627b78);
+    sun.intensity = night ? .65 : THREE.MathUtils.lerp(2.2, 3.6, blend);
+    sun.color.setHex(night ? 0xa9c4ff : blend > 0.5 ? 0xffd49a : 0xe5efff);
+    sun.position.set(p.x - 60, night ? 85 : THREE.MathUtils.lerp(110, 55, blend), p.z + (night ? -110 : 60));
     sun.target.position.set(p.x, 0, p.z);
     nearest = activities.find((a) => Math.hypot(p.x - a.x, p.z - a.z) < 7);
     tokenMeshes.forEach((m, i) => {
@@ -2167,7 +2174,8 @@ async function boot() {
             exposure: renderer.toneMappingExposure,
             textures: renderer.info.memory.textures,
             triangles: renderer.info.render.triangles,
-            lightProbe: scene.environment === reflections.gdansk ? "gdansk" : "riyadh",
+            lightProbe: scene.environment === reflections.gdansk || scene.environment === reflections.nightGdansk ? "gdansk" : "riyadh",
+            night: nightLighting.diagnostics,
             fov: camera.fov,
           },
           collected: save.collected.length,

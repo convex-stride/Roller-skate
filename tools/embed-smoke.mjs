@@ -26,6 +26,12 @@ try {
     const frame = page.frameLocator("iframe");
     const play = frame.getByRole("button", { name: "Find your line" });
     await play.waitFor({ timeout: 60000 });
+    if (standalone) {
+      await frame.locator("#lobby-settings").click();
+      await frame.locator("#nightMode").check();
+      await frame.locator("#settings-apply").click();
+      await frame.locator("#settings-back").click();
+    }
     await play.click();
     const game = page.frames().find(f => f.parentFrame());
     await game.waitForFunction(() => window.__skate.state.grounded, null, { timeout: 30000 });
@@ -40,13 +46,14 @@ try {
     });
     await page.keyboard.up("w");
     const state = await game.evaluate(() => window.__skate.state);
+    assert.equal(state.rendering.night.enabled, standalone);
     assert.ok(state.speed > 3, "keyboard movement must work inside the restricted iframe");
     await page.keyboard.press("Space");
     await game.waitForFunction(() => window.__skate.state.jumps > 0, null, { timeout: 15000 });
     await page.keyboard.press("Escape");
     assert.equal(await game.evaluate(() => window.__skate.state.paused), true);
     assert.deepEqual(errors, [], "no runtime errors when gamepads and storage are blocked");
-    console.log(`${standalone ? "Single-file opaque sandbox" : "Production iframe"}: keyboard movement, buffered jump tap, pause, zero runtime errors — passed (movement sim time ${state.simTime.toFixed(2)} s)`);
+    console.log(`${standalone ? "Single-file opaque sandbox at night" : "Production iframe in daylight"}: keyboard movement, buffered jump tap, pause, zero runtime errors — passed (movement sim time ${state.simTime.toFixed(2)} s)`);
     await page.close();
   }
 } finally {

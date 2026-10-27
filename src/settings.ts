@@ -4,6 +4,7 @@ export type Preferences = {
   shadows: boolean;
   fov: number;
   brightness: number;
+  nightMode: boolean;
   audio: boolean;
   master: number;
   effects: number;
@@ -23,6 +24,7 @@ export const defaults: Preferences = {
   shadows: true,
   fov: 65,
   brightness: 100,
+  nightMode: false,
   audio: false,
   master: 80,
   effects: 75,

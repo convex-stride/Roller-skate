@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { hash } from "./world";
+import { nightAmount } from "./night";
 
 export type SurfaceKind = "plaster" | "brick" | "paving" | "asphalt" | "roof" | "timber" | "stone";
 const maps = new Map<SurfaceKind, { color: THREE.CanvasTexture; height: THREE.CanvasTexture }>();
@@ -102,7 +103,30 @@ export function surface(kind: SurfaceKind, color: number) {
 
 export function glazing(color = 0x63818b) {
   const key = `glass:${color}`;
-  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: .18, metalness: .65, envMapIntensity: 1.35 }));
+  if (!materials.has(key)) {
+    const glass = new THREE.MeshStandardMaterial({ color, roughness: .18, metalness: .65, envMapIntensity: 1.35 });
+    glass.onBeforeCompile = shader => {
+      shader.uniforms.nightAmount = nightAmount;
+      shader.vertexShader = "varying vec3 vWindowWorld;\nvarying vec3 vWindowNormal;\n" + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace("#include <defaultnormal_vertex>", "#include <defaultnormal_vertex>\nvWindowNormal=inverseTransformDirection(transformedNormal,viewMatrix);");
+      shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
+        vec4 windowPosition=vec4(transformed,1.0);
+        #ifdef USE_INSTANCING
+          windowPosition=instanceMatrix*windowPosition;
+        #endif
+        vWindowWorld=(modelMatrix*windowPosition).xyz;`);
+      shader.fragmentShader = "varying vec3 vWindowWorld;\nvarying vec3 vWindowNormal;\nuniform float nightAmount;\n" + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+        vec2 windowUV=vec2(abs(vWindowNormal.x)>.6 ? vWindowWorld.z : vWindowWorld.x,vWindowWorld.y)/vec2(3.6,3.3);
+        vec2 windowCell=floor(windowUV), windowFraction=fract(windowUV);
+        float windowRandom=fract(sin(dot(windowCell,vec2(127.1,311.7)))*43758.5453);
+        float windowMask=step(.36,windowRandom)*step(.15,windowFraction.x)*step(windowFraction.x,.84)*step(.2,windowFraction.y)*step(windowFraction.y,.88);
+        vec3 windowGlow=mix(vec3(1.0,.53,.18),vec3(.5,.72,1.0),step(.88,windowRandom));
+        totalEmissiveRadiance+=windowGlow*windowMask*nightAmount*.85;`);
+    };
+    glass.customProgramCacheKey = () => "night-window-grid-v1";
+    materials.set(key, glass);
+  }
   return materials.get(key)!;
 }
 

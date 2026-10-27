@@ -21,9 +21,17 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Cities.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.18.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Night.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.19.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
+
+## Night skating
+
+Open **Settings → Graphics → Night mode**, then **Apply changes**. Settings are available from the lobby and pause menu on desktop and phone. The toggle previews immediately; leaving without Apply restores the saved setting. Night mode stays enabled after reload. Older saves start in daylight, and Restore defaults returns to daylight.
+
+Version 0.19 adds a moon and star field, cool moonlight, separate night reflections, lit window patterns and warm street lamps along the roads, Gdańsk quay and Riyadh heritage square. Ground light pools use one instanced draw; only the nearest four lamps use real point lights on desktop, or two on phone, without extra shadow maps. Lamps belong to their streamed district, and nearby illumination updates after travel. Parks and routes remain playable. This is a manual day/night choice, not a simulated clock or NPC day/night schedule.
+
+`npm run test:night` checks preview/discard, Apply and reload, lighting in both cities, readable night ground, daylight restoration, skating and phone controls/light budgets in a browser.
 
 ## City graphics and landmarks
 

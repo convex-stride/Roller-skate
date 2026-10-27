@@ -46,6 +46,7 @@ export const menus = `
  </nav><div class="settings-panels">
  <section role="tabpanel" id="panel-graphics" aria-labelledby="tab-graphics"><div class="panel-heading"><h3>Graphics</h3><span>FIND YOUR BALANCE</span></div>
  ${row("Graphics preset", "Choose fidelity or a smoother ride.", '<select id="quality" aria-label="Graphics preset" data-pref="quality"><option value="auto">Automatic</option><option value="1">High</option><option value="0.75">Balanced</option><option value="0.5">Low</option><option value="custom">Custom</option></select>')}
+ ${row("Night mode", "Skate under moonlight with glowing windows and street lamps.", toggle("nightMode", "Night mode"))}
  ${row("Resolution scale", "Render resolution relative to the display.", range("resolution", "Resolution scale", 50, 100, 5))}
  ${row("Real-time shadows", "Detailed shadows from buildings, trees, and rails.", toggle("shadows", "Real-time shadows"))}
  ${row("Field of view", "A wider view shows more of the upcoming line.", range("fov", "Field of view", 55, 85, 1, "°"))}

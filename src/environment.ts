@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { centers, hash, streets, type Building, type City } from "./world";
 import { inHeritageSquare, heritageShops } from "./city-profile";
 import { insideSpot, outsideParkFootprints } from "./spots";
+import { streetLamp } from "./night";
 
 const roofGeometry = new THREE.BufferGeometry();
 roofGeometry.setAttribute("position", new THREE.Float32BufferAttribute([-.5, 0, -.5, -.5, 0, .5, -.5, 1, 0, .5, 0, -.5, .5, 0, .5, .5, 1, 0], 3));
@@ -413,6 +414,7 @@ export function streetDetails(
       const px = road.x + side * (road.w / 2 + 1.4);
       cylinder(g, px, 2.7, road.z, 0.065, 5.4, historic ? 0x3b5552 : 0x9a815c);
       box(g, px, 5.4, road.z, 0.8, 0.14, 0.8, 0xe3d4a9);
+      streetLamp(g, px, 5.28, road.z, city);
     }
   }
 }
@@ -463,6 +465,11 @@ export function arrivalDistrict(g: THREE.Group, city: City, k: StreetKit) {
         tree(g, px, z, city);
         box(g, px, 0.3, z, 3, 0.6, 3, 0xb59870, true);
       }
+    }
+    for (const px of [1230, 1280]) for (const pz of [-24, 36]) {
+      cylinder(g, px, 2.7, pz, .08, 5.4, 0x7a674b);
+      box(g, px, 5.4, pz, .8, .15, .8, 0xc9b18a);
+      streetLamp(g, px, 5.25, pz, city);
     }
     for (const shop of heritageShops) {
       najdiArchitecture(g, { ...shop, h: 7, color: 0xc7a87c, front: "x", facing: shop.x < 1255 ? 1 : -1, style: "najdi" }, k);
@@ -584,6 +591,7 @@ export function arrivalDistrict(g: THREE.Group, city: City, k: StreetKit) {
       cylinder(g, x + side * (historic ? 13 : 18), 3.2, z, 0.09, 6.4, 0x3e5550);
       box(g, x + side * (historic ? 13 : 18), 6.4, z, 1.1, 0.2, 0.7, 0x3e5550);
       box(g, x + side * (historic ? 13 : 18), 6.28, z, 0.85, 0.05, 0.5, 0xffe4b0);
+      streetLamp(g, x + side * (historic ? 13 : 18), 6.2, z, city);
     }
   }
   // A visible line from the spawn: low ledge → jump rail → open landing.
@@ -612,6 +620,11 @@ export function arrivalDistrict(g: THREE.Group, city: City, k: StreetKit) {
     water.rotation.x = -Math.PI / 2;
     water.position.set(x, -0.6, 98);
     g.add(water);
+    for (const px of [-1090, -1060, -1030, -970, -940, -910]) for (const pz of [70, 125]) {
+      cylinder(g, px, 2.4, pz, .065, 4.8, 0x364b47);
+      box(g, px, 4.8, pz, .65, .18, .65, 0x364b47);
+      streetLamp(g, px, 4.62, pz, city, .17);
+    }
     for (const z of [84.5, 111.5]) {
       const promenade = box(
         g,

@@ -41,4 +41,9 @@ describe("stored preferences validation", () => {
     expect(p.reducedMotion).toBe(true);
     expect(p.audio).toBe(true);
   });
+  it("keeps old saves in daylight and accepts only boolean night mode values", () => {
+    expect(sanitizePreferences({ quality: "auto" }).nightMode).toBe(false);
+    expect(sanitizePreferences({ nightMode: true }).nightMode).toBe(true);
+    expect(sanitizePreferences({ nightMode: "true" }).nightMode).toBe(false);
+  });
 });

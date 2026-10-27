@@ -1,30 +1,32 @@
 import * as THREE from "three";
 import { hash } from "./world";
 
-/** Prefilter two bounded outdoor panoramas once; solar highlights cannot overflow mobile half floats. */
+/** Prefilter bounded day and night panoramas once; solar highlights cannot overflow mobile half floats. */
 export function cityReflections(renderer: THREE.WebGLRenderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const targets = [0, 1].map(city => {
+  const targets = [0, 1, 2, 3].map(index => {
+    const city = index % 2, night = index > 1;
     const canvas = document.createElement("canvas"); canvas.width = 512; canvas.height = 256;
     const c = canvas.getContext("2d")!, sky = c.createLinearGradient(0, 0, 0, 256);
-    sky.addColorStop(0, city ? "#8babb9" : "#7095b5");
-    sky.addColorStop(.38, city ? "#c6c7b6" : "#b6cedc");
-    sky.addColorStop(.49, city ? "#e4d7b8" : "#e0e6df");
-    sky.addColorStop(.53, city ? "#978570" : "#717e76");
-    sky.addColorStop(1, city ? "#504c43" : "#394541");
+    sky.addColorStop(0, night ? "#070d20" : city ? "#8babb9" : "#7095b5");
+    sky.addColorStop(.38, night ? "#15243d" : city ? "#c6c7b6" : "#b6cedc");
+    sky.addColorStop(.49, night ? (city ? "#615141" : "#364652") : city ? "#e4d7b8" : "#e0e6df");
+    sky.addColorStop(.53, night ? "#151b24" : city ? "#978570" : "#717e76");
+    sky.addColorStop(1, night ? "#080c13" : city ? "#504c43" : "#394541");
     c.fillStyle = sky; c.fillRect(0, 0, 512, 256);
     for (let i = 0; i < 36; i++) {
       const x = i * 15, h = 2 + hash(i, city + 1) * (city ? 22 : 9);
-      c.fillStyle = city ? "#929793" : "#7d8e91"; c.fillRect(x, 132 - h, 10, h);
+      c.fillStyle = night ? "#111b2b" : city ? "#929793" : "#7d8e91"; c.fillRect(x, 132 - h, 10, h);
     }
     const sun = c.createRadialGradient(190, city ? 100 : 75, 0, 190, city ? 100 : 75, 24);
     sun.addColorStop(0, "rgba(255,249,229,1)"); sun.addColorStop(.1, "rgba(255,249,229,.9)"); sun.addColorStop(1, "rgba(255,249,229,0)");
-    c.fillStyle = sun; c.fillRect(155, 40, 70, 100);
+    if (!night) { c.fillStyle = sun; c.fillRect(155, 40, 70, 100); }
+    else { for (let i = 0; i < 70; i++) { c.fillStyle = i % 4 ? "#e4ad66" : "#9cb8d5"; c.fillRect(hash(i, 21) * 512, 119 + hash(i, 22) * 13, 1.5, 1); } }
     const texture = new THREE.CanvasTexture(canvas); texture.mapping = THREE.EquirectangularReflectionMapping; texture.colorSpace = THREE.SRGBColorSpace;
     const target = pmrem.fromEquirectangular(texture); texture.dispose(); return target;
   });
   pmrem.dispose();
-  return { gdansk: targets[0].texture, riyadh: targets[1].texture };
+  return { gdansk: targets[0].texture, riyadh: targets[1].texture, nightGdansk: targets[2].texture, nightRiyadh: targets[3].texture };
 }
 
 /** Leaf sprays create a broken, light-filtering crown instead of opaque spheres. */
