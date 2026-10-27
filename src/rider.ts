@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import modelUrl from "./assets/rider-base.glb?url";
 import type { Skater, Controls } from "./physics";
 import { createHijab } from "./headwear";
+import { createSkateHelmet, attachProtectivePads, FAIR_SKIN_TONES } from "./safety-gear";
 
 type Pose = { p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 };
 const up = new THREE.Vector3(0, 1, 0);
@@ -126,7 +127,7 @@ export async function createRider(outfit: number) {
   function setOutfit(color: number) {
     const shirt = new THREE.Color(color),
       trousers = new THREE.Color(0x263b49),
-      skinColor = new THREE.Color(0xe9c8b8),
+      skinColor = new THREE.Color(FAIR_SKIN_TONES[0]),
       lipColor = new THREE.Color(0xb77d79),
       cheekColor = new THREE.Color(0xc58e85),
       browColor = new THREE.Color(0x7b665c),
@@ -252,6 +253,9 @@ export async function createRider(outfit: number) {
   const hijab = createHijab(bounds.max.y);
   group.add(hijab.group);
   head.attach(hijab.group);
+  const helmet = createSkateHelmet(0x9fbfc9, true);
+  helmet.group.position.set(0, bounds.max.y - 0.125, 0.045); group.add(helmet.group); head.attach(helmet.group);
+  const guards = attachProtectivePads(group, legs, arms);
   // Fit the lower scarf to the anatomical surface and share its skin weights.
   // This replaces the floating conical drape and follows the neck/shoulder joints.
   const scarfGeometry = mesh.geometry.clone();
@@ -327,6 +331,8 @@ export async function createRider(outfit: number) {
       headwear: "hijab",
       accessory: "paisley bandana over hijab",
       bandanaStyle: hijab.style,
+      helmet: "vented skate helmet over hijab and bandana",
+      guards: guards.map(guard => guard.name),
     },
     animate(
       s: Skater,

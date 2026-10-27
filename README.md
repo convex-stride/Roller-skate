@@ -21,7 +21,7 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Taqee.html`, `releases/Layans-Skate.html`, `releases/Layans-Skate-Quests.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.15.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Helmets.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.16.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
 
@@ -64,6 +64,8 @@ Three lateral support probes and smoothed ground normals, surface-dependent roll
 This is a game-oriented physical model, not a biomechanics simulator. Lateral grip, jumping, grind assistance, spins, and the 16 m/s safety cap are deliberately tunable. The supplied YouTube reference could not be viewed due to network restrictions, so exact gameplay fidelity is unverified.
 
 ## World and content
+
+Version 0.16 equips **Layan, Taqee and every resident, quest giver and racer** with a vented skate helmet, foam liner/chin straps, and paired knee, elbow and wrist guards. Layan retains her fitted hijab and pirate bandana beneath a larger helmet shell. All characters use fair skin tones. Detailed guards attach to the existing animated joints; distant NPCs have instanced helmets and pads so they retain the equipment when changing detail levels. The equipment is visual and does not change the skating physics or add an injury system.
 
 Version 0.15 names the rider Layan and adds Taqee as a persistent, callable companion. Taqee uses a separate 75 kg Rapier skater with the same push, grip, gravity and jump model as Layan; nearby anatomical animation includes skating, jumping, spins/grabs and celebrations. He has a blue jacket/cap, a taller silhouette, a name label and a map marker. Ground clearance, route planning and forward collider probes guide his movement. Calling him or traveling far in Follow/Guide mode brings him to nearby clear ground. Complex obstacles can still require recalling him; full character intelligence and motion capture remain future work.
 
@@ -110,6 +112,8 @@ Outer districts still reuse modular layouts, and the visual style remains styliz
 Version 0.5 adds architectural interpretations of Żuraw, Main Town Hall, Green Gate, Kingdom Centre, Al Faisaliyah, and Masmak. Gdańsk's arrival district has narrower, taller merchant-house fronts. Riyadh has modern glass buildings, an Olaya-style asphalt boulevard, lane markings, parked sedans, and palm-lined pavements. Open the world map and use an **Explore:** destination to visit a landmark. Building generation reserves their footprints and navigation marks them. See [CITY_ACCURACY.md](CITY_ACCURACY.md) for the important geographic limits: these are compressed architectural recreations, not street-accurate replicas or scanned models.
 
 ## Validation
+
+`npm run test:gear` (also `test:headwear`) checks Layan's helmet and six guard meshes, three-angle hijab/bandana fit, the shared fair NPC skin palette, detailed and instanced guards, Taqee, both cities and phone rendering. It captures close-ups, the full outfit and gameplay in `releases/` and checks for runtime/shader errors. Phone rendering uses Chromium touch emulation.
 
 `npm run test:companion` checks Layan's name, all 96 quest destinations, city view/search, route selection without teleportation, physical Taqee guiding/waiting/tricks, a completed duet, separate saved results, recall/dismissal and phone layouts. Rapier tests additionally cover companionship beyond 45 seconds, waiting, recall across cities, practice jumps, guide waiting, advancing to the next quest stop and the two-person race grid. Map tests cover destination completeness and click coordinates after city focus/resizing. Phone checks use Chromium touch emulation, not physical iOS/Android devices.
 

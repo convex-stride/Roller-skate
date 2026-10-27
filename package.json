@@ -1,6 +1,6 @@
 {
   "name": "layans-skate",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
     "test:cities": "node tools/cities-smoke.mjs",
     "test:flow": "node tools/flow-smoke.mjs",
     "test:headwear": "node tools/headwear-smoke.mjs",
+    "test:gear": "node tools/headwear-smoke.mjs",
     "test:rails": "node tools/rails-smoke.mjs",
     "test:spots": "node tools/spots-smoke.mjs",
     "test:touch": "node tools/touch-smoke.mjs",
