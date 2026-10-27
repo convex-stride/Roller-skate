@@ -3,9 +3,11 @@ import { findRoute } from "../src/navigation";
 import { buildings, clearGround, inCanal } from "../src/world";
 describe("street navigation", () => {
   it("routes around a solid building rather than through its footprint", () => {
-    const b = buildings(-1500, -500, "gdansk")[0],
+    // Both endpoints stay outside the new mall arenas and the building itself.
+    const b = buildings(-1700, -300, "gdansk")[0],
       path = findRoute({ x: b.x - 35, z: b.z }, { x: b.x + 35, z: b.z });
     expect(clearGround(b.x - 35, b.z, 0.7)).toBe(true);
+    expect(clearGround(b.x + 35, b.z, 0.7)).toBe(true);
     expect(path.length).toBeGreaterThan(5);
     expect(path.every((p) => clearGround(p.x, p.z, 0.7))).toBe(true);
     expect(path.some((p) => Math.abs(p.z - b.z) > 10)).toBe(true);

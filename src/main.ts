@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { cityReflections, balticFoliage } from "./world-art";
 import { NightLighting, nightGeometries } from "./night";
+import { iceRinks, iceAt, iceVenueAt, rinkArrival, rinkEntrance } from "./ice-rinks";
+import { buildIceArenas } from "./ice-scene";
 import { surface, waterMaterial, waterTime } from "./world-materials";
 import { RAPIER, Skater, STEP, idle, type Rail } from "./physics";
 import { ActionBuffer, createGamepadReader } from "./input";
@@ -49,6 +51,7 @@ import "./touch.css";
 import "./races.css";
 import "./quests.css";
 import "./companion.css";
+import "./ice.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const uiArrow =
@@ -66,11 +69,12 @@ ${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.17 / FL
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
 const el = (id: string) => document.getElementById(id)!;
 el("hud").insertAdjacentHTML("beforeend", `<aside id="quest-card" class="hidden" aria-label="Neighbourhood quest"><small id="quest-area"></small><strong id="quest-title"></strong><p id="quest-dialogue"></p><b id="quest-objective"></b><span id="quest-progress"></span><small id="quest-xp"></small><div class="quest-actions"><button id="quest-accept">Accept quest</button><button id="quest-interact">Interact</button><button id="quest-abandon">Abandon quest</button><button id="quest-close">Close</button></div></aside>`);
+el("hud").insertAdjacentHTML("beforeend", `<aside id="ice-card" class="hidden" aria-label="Ice arena"><small>MALL ICE · STADIUM SEATING</small><strong id="ice-name"></strong><span id="ice-status"></span><div class="ice-actions"><button id="ice-enter">Enter ice</button><button id="ice-partner">Skate with Taqee</button><button id="ice-exit">Mall entrance</button></div></aside>`);
 el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>J · Neighbourhood quests</b>Find local jobs · Enter / Y to accept or interact</div>");
 el("quest-interact").insertAdjacentHTML("afterend", '<button id="quest-bank" hidden>Ride bank</button>');
 document.querySelectorAll(".rider-profile > span:last-child").forEach(node => { node.innerHTML = "LAYAN<small>FREESTYLE RIDER</small>"; });
 document.querySelector(".rider-caption strong")!.textContent = "LAYAN / INLINE";
-el("app").insertAdjacentHTML("beforeend", `<button id="partner-toggle" class="hidden" aria-controls="partner-panel" aria-expanded="false">Call Taqee</button><aside id="partner-panel" class="hidden" aria-label="Taqee companion commands"><h3>Taqee & Layan</h3><p id="partner-status"></p><div class="partner-actions"><button data-partner="call">Come here</button><button data-partner="follow">Follow me</button><button data-partner="guide">Lead the way</button><button data-partner="tricks">Practise tricks</button><button data-partner="cheer">Cheer me on</button><button data-partner="wait">Wait here</button><button data-partner="race">Race me</button><button data-partner="quest">Find a quest</button><button data-partner="dismiss">See you later</button><button data-partner="close">Close</button></div></aside>`);
+el("app").insertAdjacentHTML("beforeend", `<button id="partner-toggle" class="hidden" aria-controls="partner-panel" aria-expanded="false">Call Taqee</button><aside id="partner-panel" class="hidden" aria-label="Taqee companion commands"><h3>Taqee & Layan</h3><p id="partner-status"></p><div class="partner-actions"><button data-partner="call">Come here</button><button data-partner="follow">Follow me</button><button data-partner="pairs">Ice skating partner</button><button data-partner="guide">Lead the way</button><button data-partner="tricks">Practise tricks</button><button data-partner="cheer">Cheer me on</button><button data-partner="wait">Wait here</button><button data-partner="race">Race me</button><button data-partner="quest">Find a quest</button><button data-partner="dismiss">See you later</button><button data-partner="close">Close</button></div></aside>`);
 el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>P · Call Taqee</b>Follow, guide, tricks, wait or race together</div>");
 el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>1 / 2 / 3 / 4 · flips</b>Front / back / left side / right side. Tap again for a double.</div><div><b>Controller D-pad</b>Up frontflip · down backflip · left/right side flip</div>");
 el("help").querySelector("p")!.insertAdjacentText("beforeend", " Flip buttons hop automatically from the ground. Hold Jump for more height. Combine a flip with Z/C and a grab. Doubles need extra airtime from a bank; unfinished rotations can bail.");
@@ -558,6 +562,7 @@ async function boot() {
   const questScene = buildQuestScene(scene);
   spotScene.groups.forEach(g => batchInstances(g));
   batchInstances(spotScene.group);
+  const iceScene = buildIceArenas(scene, { box, cylinder, tree, rail, material }, mobileDevice, g => batchInstances(g));
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const companion = new Companion(world, skater);
   let restorePartner = !!save.partnerActive;
@@ -809,11 +814,30 @@ async function boot() {
     stream(true); closeMenus(); snapCamera();
     toast(`${park.name} · ${park.layout.toUpperCase()} PARK · free skate or start a session`);
   }
+  function visitRink(id: string, entrance = false) {
+    const rink = iceRinks.find(r => r.id === id)!;
+    stopRace(); stopSpot(); active = null; gate.visible = false; waypoint = null; focusedQuest = null;
+    el("event").classList.add("hidden");
+    const point = entrance ? rinkEntrance(rink) : rinkArrival(rink);
+    skater.bank(); skater.reset(point.x, point.z); skater.heading = 0; safe = { ...point }; lookYaw = 0; lookPitch = .1;
+    stream(true); closeMenus(); snapCamera();
+    toast(entrance ? `${rink.name} · Walk through the entrance to reach the ice` : `${rink.name} · Ice blades fitted · Glide, jump, or invite Taqee`);
+  }
+  el("ice-enter").onclick = () => { const p = skater.body.translation(), r = iceVenueAt(p.x, p.z, 8); if (r) visitRink(r.id); };
+  el("ice-exit").onclick = () => { const p = skater.body.translation(), r = iceVenueAt(p.x, p.z, 8); if (r) visitRink(r.id, true); };
+  el("ice-partner").onclick = () => {
+    const p = skater.body.translation(), r = iceVenueAt(p.x, p.z, 8); if (!r) return;
+    if (!iceAt(p.x, p.z)) visitRink(r.id);
+    companion.call(); companion.command("pairs"); save.partnerActive = companion.active; persist();
+    toast(`Taqee: ${companion.message}`); canvas.focus();
+  };
   el("race-join").onclick = () => { if (nearestRace) startRace(nearestRace); };
   el("race-restart").onclick = () => { if (raceSession) startRace(raceSession.run.definition, raceSession.duet); };
   el("race-leave").onclick = () => { stopRace(); canvas.focus(); toast("Free skate · race left"); };
   function startNearby() {
     if (raceSession) { if (raceSession.run.status === "finished" || raceSession.run.status === "timeout") startRace(raceSession.run.definition, raceSession.duet); return; }
+    const p = skater.body.translation(), rink = iceVenueAt(p.x, p.z, 8);
+    if (rink) { if (iceAt(p.x, p.z)) el("ice-partner").click(); else visitRink(rink.id); return; }
     if (focusedQuest || (nearestQuest && !questRun)) { acceptQuest(focusedQuest ?? nearestQuest!); return; }
     if (questRun) { interactQuest(); return; }
     if (nearestRace) startRace(nearestRace);
@@ -1131,6 +1155,8 @@ async function boot() {
     if (questButton) { visitQuest(quests.find(q => q.id === questButton.dataset.quest)!); return; }
     const parkButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-park]");
     if (parkButton) { visitPark(parkButton.dataset.park!); return; }
+    const rinkButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-rink]");
+    if (rinkButton) { visitRink(rinkButton.dataset.rink!); return; }
     const raceButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-race]");
     if (raceButton) { startRace(races.find(r => r.id === raceButton.dataset.race)!); return; }
     const courseButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-course]");
@@ -1168,6 +1194,7 @@ async function boot() {
     }
   };
   el("challenge-list").insertAdjacentHTML("afterbegin", spots.map(s => `<button data-park="${s.id}">Park: ${s.name}<small>${s.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${s.layout.toUpperCase()} · free skate</small></button>`).join(""));
+  el("challenge-list").insertAdjacentHTML("afterbegin", iceRinks.map(r => `<button data-rink="${r.id}">Ice arena: ${r.name}<small>${r.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${r.theme} · Taqee pairs skating</small></button>`).join(""));
   el("challenge-list").insertAdjacentHTML("afterbegin", quests.map(q => `<button data-quest="${q.id}"></button>`).join(""));
   function refreshQuestList() {
     el("challenge-list").querySelectorAll<HTMLButtonElement>("[data-quest]").forEach(button => {
@@ -1178,7 +1205,7 @@ async function boot() {
     });
   }
   refreshQuestList();
-  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["flip", "Flip challenges"], ["park", "Skate parks"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
+  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["flip", "Flip challenges"], ["park", "Skate parks"], ["rink", "Ice arenas"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
   document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(button => button.onclick = () => {
     mapFilter = button.dataset.mapFilter!;
     document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
@@ -1856,12 +1883,22 @@ async function boot() {
     localsButton.disabled = !local && !crowd.director.follower;
     localsButton.hidden = mobileDevice && spotRun?.status === "riding";
     spotScene.animate(simTime, p.x, p.z);
+    iceScene.update(p.x, p.z);
+    const currentRink = iceVenueAt(p.x, p.z, 8), onIce = !!iceAt(p.x, p.z);
+    el("ice-card").classList.toggle("hidden", !currentRink || paused || !!active || !!raceSession);
+    if (currentRink) {
+      el("ice-name").textContent = currentRink.name;
+      el("ice-status").textContent = onIce ? companion.active && companion.mode === "pairs" ? "Layan + Taqee · pairs skating" : "Ice blades fitted · smooth gliding" : "Skate hire · cafés · ice ahead";
+      el("ice-enter").hidden = onIce;
+      el("ice-partner").textContent = companion.active && companion.mode === "pairs" ? "Recall Taqee" : "Skate with Taqee";
+    }
     updateSpotCard();
     updateRaceCard();
     updateQuestCard();
-    if (!el("partner-panel").classList.contains("hidden")) for (const id of ["spot-card", "quest-card", "race-card"]) el(id).classList.add("hidden");
+    if (currentRink) for (const id of ["spot-card", "quest-card", "race-card"]) el(id).classList.add("hidden");
+    if (!el("partner-panel").classList.contains("hidden")) for (const id of ["spot-card", "quest-card", "race-card", "ice-card"]) el(id).classList.add("hidden");
     const rideButton = document.querySelector<HTMLButtonElement>('#touch-controls [data-command="event"]');
-    if (rideButton) rideButton.textContent = raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : questRun ? "Interact" : nearestQuest || focusedQuest ? "Quest" : "Ride";
+    if (rideButton) rideButton.textContent = currentRink ? onIce ? "Partner" : "Ice" : raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : questRun ? "Interact" : nearestQuest || focusedQuest ? "Quest" : "Ride";
     rider.position.set(p.x, p.y - 0.83, p.z);
     rider.rotation.y =
       skater.heading +
@@ -2112,6 +2149,8 @@ async function boot() {
         return {
           riderName: "Layan",
           companion: companion.state,
+          rink: iceVenueAt(p.x, p.z) ? { id: iceVenueAt(p.x, p.z)!.id, onIce: !!iceAt(p.x, p.z) } : null,
+          iceArenas: iceRinks.length,
           position: { ...p },
           speed: skater.speed,
           grounded: skater.grounded,

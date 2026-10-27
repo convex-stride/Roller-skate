@@ -1,3 +1,4 @@
+import { iceAt } from "./ice-rinks";
 export type Landmark = {
   id: string;
   name: string;
@@ -145,6 +146,7 @@ export function landmarkAt(x: number, z: number, margin = 0) {
   );
 }
 export const surfaceAt = (x: number, z: number) => {
+  if (iceAt(x, z)) return { name: "ICE", rolling: .002, grip: .56 };
   if (inHeritageSquare(x, z)) return { name: "LIMESTONE", rolling: 0.009, grip: 0.8 };
   if (x > -1100 && x < -900 && ((z > 69 && z < 86) || (z > 110 && z < 127)))
     return { name: "STONE", rolling: 0.014, grip: 0.72 };

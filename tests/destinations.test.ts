@@ -6,6 +6,7 @@ describe("selectable map destinations", () => {
   it("exposes all 128 quests and the parks, races and landmarks as named destinations", () => {
     expect(destinations.filter(d => d.kind === "quest")).toHaveLength(128);
     expect(destinations.filter(d => d.kind === "park")).toHaveLength(14);
+    expect(destinations.filter(d => d.kind === "rink")).toHaveLength(6);
     expect(destinations.filter(d => d.kind === "race")).toHaveLength(4);
     expect(new Set(destinations.map(d => d.id)).size).toBe(destinations.length);
     expect(destinations.every(d => !!d.label && Number.isFinite(d.x) && Number.isFinite(d.z))).toBe(true);

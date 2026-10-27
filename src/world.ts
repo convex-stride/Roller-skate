@@ -3,6 +3,7 @@ import { insideSpot, spots } from "./spots";
 import { parkObstacleAt } from "./park-layouts";
 import { races } from "./races";
 import { makeDistrictSites, districtPropAt, type DistrictSite } from "./district-content";
+import { iceVenueAt, rinkObstacleAt } from "./ice-rinks";
 export const CITY_SIZE = 1600;
 export const CHUNK = 200;
 export type City = "gdansk" | "riyadh";
@@ -161,7 +162,7 @@ export function buildings(cx: number, cz: number, city: City): Building[] {
       ),
   );
   result = result.filter(
-    (b) => !insideSpot(b.x, b.z, Math.max(b.w, b.d) / 2 + 8) && !landmarkAt(b.x, b.z, Math.max(b.w, b.d) / 2 + 6) &&
+    (b) => !iceVenueAt(b.x, b.z, Math.max(b.w, b.d) / 2 + 6) && !insideSpot(b.x, b.z, Math.max(b.w, b.d) / 2 + 8) && !landmarkAt(b.x, b.z, Math.max(b.w, b.d) / 2 + 6) &&
       !(city === "riyadh" && inHeritageSquare(b.x, b.z, Math.max(b.w, b.d) / 2 + 6)),
   );
   buildingCache.set(key, result);
@@ -184,6 +185,7 @@ export function clearGroundBase(x: number, z: number, margin = 2) {
     iz = Math.floor((z + 800) / 200);
   if (inCanal(x, z)) return false;
   if (landmarkAt(x, z, margin)) return false;
+  if (rinkObstacleAt(x, z, margin)) return false;
   for (const s of spots) {
     if (parkObstacleAt(s, x, z, margin)) return false;
   }
@@ -219,6 +221,7 @@ function distanceToSegment(x: number, z: number, a: { x: number; z: number }, b:
   return Math.hypot(x - a.x - dx * t, z - a.z - dz * t);
 }
 export function protectedActivityGround(x: number, z: number, margin: number) {
+  if (iceVenueAt(x, z, margin + 12)) return true;
   if (Math.abs(x) < 200 + margin || insideSpot(x, z, margin + 4) || inHeritageSquare(x, z, margin + 10) || landmarkAt(x, z, margin + 10)) return true;
   const city = cityAt(x);
   if (Math.abs(x - centers[city]) < 75 + margin && Math.abs(z) < 210 + margin) return true;

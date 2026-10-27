@@ -31,3 +31,7 @@ Street alignments, road widths, exact building dimensions, neighborhood adjacenc
 On 2026-10-25, requests to the public OpenStreetMap map API and Wikipedia landmark reference pages returned HTTP 403 proxy denials, including access retries. No OpenStreetMap data was downloaded or incorporated. These failures must not be described as successful map research or used to claim street-level fidelity.
 
 A geographically accurate next version needs validated map/source data for selected real districts, including road and building footprints and verified landmark dimensions. Public API access would require `api.openstreetmap.org`; reference access would require the relevant documentation hosts. A supplied licensed map export is another workable input. Any imported data must carry its required attribution/license and be checked against the playable world, collision, navigation, and area requirements.
+
+## Fictional ice venues
+
+Version 0.20 adds four Gdańsk-themed mall arenas (Baltic Galleria, Oliwa Winter Pavilion, Motława Mall and Shipyard Centre) and two Riyadh-themed arenas (Olaya Mall and Palm Galleria). These names, positions, mall shop fronts and stadium interiors are invented gameplay content. They are not verified real-world rink locations or reconstructions of existing mall facilities. Each uses a standard-sized 30 × 60 m ice sheet in a compressed indoor stadium.

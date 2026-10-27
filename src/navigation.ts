@@ -14,6 +14,7 @@ import { quests } from "./quests";
 import { landmarks } from "./city-profile";
 import { spots, courses } from "./spots";
 import { races } from "./races";
+import { iceRinks } from "./ice-rinks";
 export type Point = { x: number; z: number };
 export type Goal = Point & { label: string };
 const cell = 10;
@@ -249,6 +250,12 @@ export class NavigationMap {
       ctx.fillStyle = spot.city === "gdansk" ? "#ffaa76" : "#93e6d1";
       ctx.beginPath(); ctx.arc(x, y, large ? 5 : 7, 0, Math.PI * 2); ctx.fill();
       if (large) { ctx.font = "bold 9px Arial"; ctx.fillText(spot.name, x + 8, y + 3); }
+    }
+    for (const r of iceRinks) {
+      rect(r.x, r.z, 72, 88, "#526c7a"); rect(r.x, r.z, 30, 60, "#b9e6f1");
+      const [x, y] = project(r.x, r.z);
+      ctx.fillStyle = "#e8fbff"; ctx.beginPath(); ctx.arc(x, y, large ? 5 : 6, 0, Math.PI * 2); ctx.fill();
+      if (large) { ctx.font = "bold 9px Arial"; ctx.fillText(r.name, x + 8, y - 5); }
     }
     rect(-1000, 98, 200, 24, "#2b7185");
     rect(-1000, 98, 12, 28, "#a8b494");

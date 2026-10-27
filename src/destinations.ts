@@ -3,9 +3,11 @@ import { spots, courses } from "./spots";
 import { races } from "./races";
 import { landmarks } from "./city-profile";
 import { activities } from "./world";
-export type DestinationKind = "quest" | "park" | "race" | "course" | "landmark" | "event";
+import { iceRinks, rinkArrival } from "./ice-rinks";
+export type DestinationKind = "quest" | "park" | "race" | "course" | "landmark" | "event" | "rink";
 export type Destination = { id: string; kind: DestinationKind; key: string; label: string; x: number; z: number; marker?: { x: number; z: number } };
 export const destinations: Destination[] = [
+  ...iceRinks.map(r => ({ id: `rink:${r.id}`, kind: "rink" as const, key: r.id, label: r.name, ...rinkArrival(r), marker: { x: r.x, z: r.z } })),
   ...quests.map(q => ({ id: `quest:${q.id}`, kind: "quest" as const, key: q.id, label: `${q.title} · ${q.giver}`, ...q.anchor })),
   ...spots.map(s => ({ id: `park:${s.id}`, kind: "park" as const, key: s.id, label: s.name, x: courses.find(c => c.spot.id === s.id)!.start.x, z: courses.find(c => c.spot.id === s.id)!.start.z })),
   ...races.map(r => ({ id: `race:${r.id}`, kind: "race" as const, key: r.id, label: r.name, ...r.start })),

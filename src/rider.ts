@@ -170,6 +170,8 @@ export async function createRider(outfit: number) {
       roughness: 0.32,
     });
   const wheels: THREE.Object3D[] = [];
+  const blades: THREE.Group[] = [];
+  let iceEquipment = false;
   function rounded(
     parent: THREE.Object3D,
     w: number,
@@ -220,6 +222,10 @@ export async function createRider(outfit: number) {
       hub.rotation.z = Math.PI / 2;
       wheel.add(hub);
     }
+    const blade = new THREE.Group(); boot.add(blade); blades.push(blade); blade.visible = false;
+    rounded(blade, .014, .03, .36, 0, .025, .025, alloy, .003);
+    for (const z of [-.08, .1]) rounded(blade, .034, .07, .045, 0, .065, z, alloy, .005);
+    rounded(blade, .02, .045, .025, 0, .037, .195, alloy, .003);
     return boot;
   });
   const head = bone("Skeleton_neck_joint_2");
@@ -333,6 +339,7 @@ export async function createRider(outfit: number) {
       bandanaStyle: hijab.style,
       helmet: "vented skate helmet over hijab and bandana",
       guards: guards.map(guard => guard.name),
+      get skates() { return iceEquipment ? "ice blades" : "inline wheels"; },
     },
     animate(
       s: Skater,
@@ -341,6 +348,8 @@ export async function createRider(outfit: number) {
       groundHeight: (x: number, z: number) => number | null,
       cinematic = false,
     ) {
+      iceEquipment = s.surface === "ICE";
+      wheels.forEach(w => { w.visible = !iceEquipment; }); blades.forEach(b => { b.visible = iceEquipment; });
       poses.forEach((pose, b) => {
         b.position.copy(pose.p);
         b.quaternion.copy(pose.q);

@@ -1,6 +1,7 @@
 import { clearGround, hash, inWorld } from "./world";
 import { spots } from "./spots";
 import { quests } from "./quests";
+import { iceRinks } from "./ice-rinks";
 
 export type CrowdRole = "skater" | "walker" | "social" | "vendor" | "spectator";
 export type CrowdAction = "push" | "coast" | "walk" | "talk" | "phone" | "wave" | "cheer" | "yield" | "rideAlong";
@@ -89,6 +90,13 @@ export class CrowdDirector {
       const { x, z } = q.anchor;
       add("walker", [[x - 3, z - 3], [x + 3, z - 3], [x + 3, z + 3], [x - 3, z + 3]], 2);
       add(q.kind === "style" || q.kind === "flip" ? "spectator" : "social", [[x - 2, z + 2], [x - 1, z + 2]], 2);
+    }
+    for (const r of iceRinks) {
+      add("skater", [[r.x - 9, r.z - 22], [r.x - 9, r.z + 22], [r.x + 9, r.z + 22], [r.x + 9, r.z - 22]], 8);
+      for (const side of [-1, 1]) {
+        add("spectator", [[r.x + side * 19, r.z - 9], [r.x + side * 19, r.z + 9]], 2);
+        add("vendor", [[r.x + side * 16, r.z - 36], [r.x + side * 16, r.z - 34]], 1);
+      }
     }
     this.ambientStart = this.people.length;
     for (let n = 0; n < 32; n++) {

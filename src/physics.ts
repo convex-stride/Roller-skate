@@ -401,7 +401,7 @@ export class Skater {
     }
     const speed = this.speed;
     this.slideAmount += ((c.slide && this.grounded && speed > 2 ? 1 : 0) - this.slideAmount) * (1 - Math.exp(-dt * 10));
-    // Lateral tire/skate grip, aerodynamic drag and push force are calculated in SI units.
+    // Wheel/blade edge grip, aerodynamic drag and push force use SI units.
     const desiredYaw =
       c.steer *
       (this.grounded
@@ -435,7 +435,7 @@ export class Skater {
       Math.max(0, 1 - Math.pow(Math.abs(forward) / 14, 4)) *
       stroke;
     const braking = this.grounded
-      ? (this.bailTimer > 0 ? 1 : Math.max(this.brakePressure, this.slideAmount * 0.85)) * 310
+      ? (this.bailTimer > 0 ? 1 : Math.max(this.brakePressure, this.slideAmount * 0.85)) * (this.surface === "ICE" ? 220 : 310)
       : 0;
     const resistance = Math.min((speed * 75) / dt, rolling + drag + braking);
     const nx = speed > 0 ? v.x / speed : 0,

@@ -2,8 +2,9 @@ import { RAPIER, Skater, idle, STEP } from "./physics";
 import { clearGround } from "./world";
 import { findRoute, type Goal, type Point } from "./navigation";
 import type { CrowdPerson } from "./crowd";
+import { iceAt } from "./ice-rinks";
 
-export type PartnerMode = "follow" | "guide" | "wait" | "cheer" | "tricks";
+export type PartnerMode = "follow" | "guide" | "wait" | "cheer" | "tricks" | "pairs";
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 export class Companion {
   skater: Skater | null = null;
@@ -40,10 +41,12 @@ export class Companion {
     this.mode = "follow"; this.message = "I’m here, Layan. Lead the way — I’ll stay with you."; return true;
   }
   command(mode: PartnerMode, goal: Goal | null = null) {
+    const p = this.player.body.translation();
+    if (mode === "pairs" && !iceAt(p.x, p.z)) { this.message = "Meet me on an ice rink, Layan, and we can skate side by side."; return; }
     if (!this.active && !this.call()) return;
     if (mode === "guide" && !goal) { this.message = "Choose a place or a quest on the map, then ask me to lead."; return; }
     this.mode = mode; this.plannedGoal = null; this.planClock = 0; this.route = [];
-    this.message = mode === "guide" ? `Let’s go to ${goal!.label}. I’ll wait if you fall behind.` : mode === "wait" ? "I’ll wait right here. Call me when you’re ready." : mode === "cheer" ? "Show me your best line, Layan!" : mode === "tricks" ? "Let’s practise! Jump and I’ll join in." : "I’m with you. We can skate at your pace.";
+    this.message = mode === "pairs" ? "Let’s share the ice, Layan. I’ll skate beside you and join your jumps." : mode === "guide" ? `Let’s go to ${goal!.label}. I’ll wait if you fall behind.` : mode === "wait" ? "I’ll wait right here. Call me when you’re ready." : mode === "cheer" ? "Show me your best line, Layan!" : mode === "tricks" ? "Let’s practise! Jump and I’ll join in." : "I’m with you. We can skate at your pace.";
   }
   dismiss() { if (this.skater) this.world.removeRigidBody(this.skater.body); this.skater = null; this.route = []; this.pausedForRace = false; }
   tick(goal: Goal | null, racing = false) {
@@ -53,6 +56,7 @@ export class Companion {
     if (this.pausedForRace) { const mode = this.mode; this.call(); this.mode = mode; if (!this.skater) return; }
     if (this.mode === "guide" && !goal) { this.mode = "follow"; this.message = "I’ll follow you until you choose another stop, Layan."; }
     let s = this.skater, p = s.body.translation(), player = this.player.body.translation();
+    if (this.mode === "pairs" && !iceAt(player.x, player.z)) { this.mode = "follow"; this.message = "That was fun. I’ll follow you through the mall, Layan."; }
     if (distance(p, player) > 85 && this.mode !== "wait") { const mode = this.mode; if (!this.spawn()) return; this.mode = mode; s = this.skater!; p = s.body.translation(); }
     this.planClock -= STEP; this.trickClock -= STEP; this.celebration = Math.max(0, this.celebration - STEP);
     if (this.player.banked > this.lastScore + 100) { this.celebration = 3; this.message = "That was a great landing, Layan!"; }
@@ -60,20 +64,23 @@ export class Companion {
     const c = idle();
     const stationary = this.mode === "wait" || this.mode === "cheer" || (this.mode === "tricks" && this.player.speed < 1);
     let target: Point = { x: player.x - Math.sin(this.player.heading) * 3 + Math.cos(this.player.heading) * 2, z: player.z - Math.cos(this.player.heading) * 3 - Math.sin(this.player.heading) * 2 };
+    if (this.mode === "pairs") target = { x: player.x + Math.cos(this.player.heading) * 2, z: player.z - Math.sin(this.player.heading) * 2 };
     if (!clearGround(target.x, target.z, 0.8)) target = player;
     const guiding = this.mode === "guide" && !!goal;
     if (guiding) target = goal;
-    const goalChanged = !this.plannedGoal || distance(target, this.plannedGoal) > (guiding ? 1 : 12);
-    if (!stationary && ((guiding && goalChanged) || (this.planClock <= 0 && (goalChanged || !this.route.length)))) {
+    const goalChanged = !this.plannedGoal || distance(target, this.plannedGoal) > (guiding ? 1 : this.mode === "pairs" ? 2 : 12);
+    if (!stationary && ((guiding && goalChanged) || (this.planClock <= 0 && (goalChanged || !this.route.length || this.mode === "pairs")))) {
       if (guiding && goalChanged) this.message = `Next stop: ${goal.label}. Follow my blue marker, Layan.`;
-      this.route = findRoute(p, target); this.routeIndex = 1; this.plannedGoal = { ...target }; this.planClock = guiding ? 4 : 1.5;
+      const steps = Math.ceil(distance(p, target) / .75);
+      const directIce = this.mode === "pairs" && iceAt(p.x, p.z) && iceAt(target.x, target.z) && Array.from({ length: steps + 1 }, (_, n) => clearGround(p.x + (target.x - p.x) * n / Math.max(1, steps), p.z + (target.z - p.z) * n / Math.max(1, steps), .8)).every(Boolean);
+      this.route = directIce ? [{ x: p.x, z: p.z }, { ...target }] : findRoute(p, target); this.routeIndex = 1; this.plannedGoal = { ...target }; this.planClock = guiding ? 4 : this.mode === "pairs" ? .35 : 1.5;
     }
     while (this.routeIndex < this.route.length - 1 && distance(p, this.route[this.routeIndex]) < 2.5) this.routeIndex++;
     const next = this.route[this.routeIndex] ?? target, remaining = distance(p, target);
     const desired = Math.atan2(next.x - p.x, next.z - p.z), error = Math.atan2(Math.sin(desired - s.heading), Math.cos(desired - s.heading));
     c.steer = Math.max(-1, Math.min(1, error * 3));
     const waitingForLayan = guiding && distance(p, player) > 16;
-    const stopped = stationary || waitingForLayan || remaining < (guiding ? 3.5 : 1.8);
+    const stopped = stationary || waitingForLayan || remaining < (guiding ? 3.5 : this.mode === "pairs" ? .7 : 1.8);
     const limit = guiding ? 5.5 : Math.min(12, Math.max(2, this.player.speed + 1.5));
     if (stopped || (Math.abs(error) > 0.45 && s.speed > 1) || s.speed > limit) c.brake = 1;
     else if (Math.abs(error) < 0.65) c.throttle = Math.min(1, remaining / 5);
@@ -96,5 +103,5 @@ export class Companion {
     const s = this.skater, p = s.body.translation(), player = this.player.body.translation();
     return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset, airPitch: s.airPitch + s.landingPitchOffset, airRoll: s.airRoll + s.landingRollOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
   }
-  get state() { const s = this.skater; return { active: this.active, mode: this.mode, message: this.message, position: s ? { ...s.body.translation() } : null, speed: s?.speed ?? 0, jumps: s?.jumpCount ?? 0, routePoints: this.route.length, racing: this.pausedForRace }; }
+  get state() { const s = this.skater; return { active: this.active, mode: this.mode, message: this.message, position: s ? { ...s.body.translation() } : null, speed: s?.speed ?? 0, surface: s?.surface ?? null, jumps: s?.jumpCount ?? 0, routePoints: this.route.length, racing: this.pausedForRace }; }
 }

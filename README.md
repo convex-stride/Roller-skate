@@ -21,9 +21,28 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Night.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.19.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Ice.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.20.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
+
+## Mall ice arenas and Taqee pairs skating
+
+Version 0.20 adds six indoor ice arenas. Open **Map → Ice arenas**, select a venue, and use **Travel here** or **Fast travel** to visit. **Guide me** routes through the mall entrance to the ice instead of teleporting. The minimap and world map show the arenas in ice blue.
+
+| Gdańsk · four venues | Riyadh · two venues |
+| --- | --- |
+| Baltic Galleria Ice Arena | Olaya Mall Ice Arena |
+| Oliwa Winter Pavilion | Palm Galleria Ice Stadium |
+| Motława Mall Ice Hall | |
+| Shipyard Centre Ice Stadium | |
+
+Each venue has a 30 × 60 m ice sheet with rounded corners and rink markings, protective boards and glass, tiered stadium seating, a roof with light strips, and mall shop fronts for skate hire, cafés and lockers. Local skaters circulate on the ice; spectators and vendors occupy the concourse. Shop fronts and seating are simplified set dressing. These are fictional venues, rather than claims about real malls or rink addresses.
+
+Layan automatically switches from wheels to visible ice blades on the ice and back to inline skates in the concourse. Taqee and nearby skaters use blades too. Ice uses lower rolling resistance, reduced lateral edge grip and controlled braking in the existing fixed-step Rapier model. Shared collision/navigation geometry keeps boards and seating solid while leaving wide entrances open. Existing quests, streets, landmarks and skate parks remain accessible; all 128 quest definitions retain their positions and objectives.
+
+Tap **Skate with Taqee** on the arena card to call him onto the ice in **pairs** mode. He tracks a position beside Layan, matches her pace and joins jumps; he returns to following through the mall when she leaves the ice. The companion panel also has **Ice skating partner**. On phone the nearby **Partner** action calls him too. **Mall entrance** returns Layan to the venue entrance so she can skate into it from the street. Helmets, pads, Layan’s hijab and bandana remain equipped.
+
+A small indoor light budget keeps arenas lit in daylight and Night mode. Only nearby arena art renders; riding collision remains present. `npm run test:ice` checks all six destinations, physical entry, automatic skate changes, actual Taqee movement/jumps and phone skating in both cities at night. Unit tests exercise ice gliding/braking, rink collision, navigation entrances and pairs following.
 
 ## Night skating
 

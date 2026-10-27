@@ -1,0 +1,16 @@
+#ice-card {
+  position: absolute; top: 110px; left: 32px; width: 270px; padding: 15px;
+  color: #eaf8ff; background: #12313bea; border: 1px solid #9fd8e276; border-top: 3px solid #9bdced;
+  pointer-events: auto; box-shadow: 0 12px 35px #04131b40;
+}
+#ice-card small { display: block; color: #a5dce9; font-size: 9px; letter-spacing: .12em; font-weight: 800; }
+#ice-name { display: block; font-size: 17px; margin: 7px 0; }
+#ice-status { display: block; font-size: 11px; color: #c8e0e6; }
+.ice-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.ice-actions button { font-size: 11px; padding: 9px; min-height: 38px; }
+#ice-partner { background: #bde7ef; color: #163b45; }
+body.touch-play #ice-card { top: 65px; left: 12px; width: min(230px, calc(100vw - 152px)); padding: 10px; }
+body.touch-play #ice-name { font-size: 14px; }
+body.touch-play .ice-actions { gap: 4px; }
+body.touch-play .ice-actions button { font-size: 10px; min-height: 42px; padding: 7px; }
+@media (max-height: 500px) and (pointer: coarse) { body.touch-play #ice-card { top: 51px; width: 210px; padding: 7px; } body.touch-play #ice-status { font-size: 10px; } }
