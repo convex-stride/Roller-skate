@@ -12,6 +12,7 @@ try {
   await page.screenshot({ path: "releases/layans-skate-lobby-v13.png" });
   await page.getByRole("button", { name: "Find your line" }).click();
   await page.keyboard.press("m"); await page.getByRole("button", { name: "Skate parks", exact: true }).click();
+  await page.locator("#map-travel-mode").click();
   assert.equal(await page.locator("[data-park]:visible").count(), 14);
   assert.equal(await page.locator("[data-race]:visible").count(), 0);
   await page.screenshot({ path: "releases/layans-skate-parks-map-v13.png" });
@@ -45,6 +46,7 @@ try {
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
   await phone.getByRole("button", { name: "Open world map", exact: true }).tap();
+  await phone.locator("#map-travel-mode").tap();
   await phone.getByRole("button", { name: "Skate parks", exact: true }).tap();
   await phone.locator('[data-park="palm"]').tap();
   await phone.waitForFunction(() => window.__skate.state.park === "palm" && window.__skate.state.grounded);

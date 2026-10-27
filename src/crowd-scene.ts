@@ -33,6 +33,12 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     g.setAttribute("color", new THREE.BufferAttribute(c, 3)); return g;
   });
   const bodyMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+  const partnerGeometry = geometries[1].clone(), partnerVertices = partnerGeometry.getAttribute("position");
+  for (let i = 0; i < partnerVertices.count; i++) {
+    const x = partnerVertices.getX(i), y = partnerVertices.getY(i), z = partnerVertices.getZ(i);
+    if (y > 1.02 && y < 1.49) { partnerVertices.setX(i, x * 1.12); partnerVertices.setZ(i, z * (z > 0 ? 0.7 : 1)); }
+  }
+  partnerGeometry.computeVertexNormals();
   const dark = new THREE.MeshStandardMaterial({ color: 0x283c40, roughness: 0.8 });
   const white = new THREE.MeshStandardMaterial({ color: 0xe5dfd0, roughness: 0.7 });
   const helmets = colors.map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.65 }));
@@ -107,10 +113,10 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   }
   function animateRig(rig: typeof rigs[number], p: CrowdPerson, player: CrowdPlayer) {
     const palette = p.id % colors.length, skating = p.role === "skater";
-    rig.assigned = p.id; rig.group.visible = true; rig.mesh.geometry = geometries[palette]; rig.headwear.material = skating ? helmets[palette] : dark;
+    rig.assigned = p.id; rig.group.visible = true; rig.mesh.geometry = p.name === "Taqee" ? partnerGeometry : geometries[palette]; rig.headwear.material = p.name === "Taqee" ? helmets[1] : skating ? helmets[palette] : dark;
     rig.poses.forEach(({ b, q, p }) => { b.quaternion.copy(q); b.position.copy(p); });
-    const height = 0.94 + (p.id % 5) * 0.025, stride = Math.sin(p.phase), moving = Math.min(1, p.speed / (skating ? 2 : 0.8));
-    rig.group.position.set(p.x, p.ground, p.z); rig.group.rotation.y = p.heading; rig.group.scale.set(1, height, 1);
+    const height = p.name === "Taqee" ? 1.05 : 0.94 + (p.id % 5) * 0.025, stride = Math.sin(p.phase), moving = Math.min(1, p.speed / (skating ? 2 : 0.8));
+    rig.group.position.set(p.x, p.ground, p.z); rig.group.rotation.y = p.heading + (p.airRotation ?? 0); rig.group.scale.set(1, height, 1);
     rig.body.position.y = skating ? p.crouching ? -0.03 : 0.07 : Math.abs(stride) * 0.025 * moving + 0.025;
     rig.body.rotation.x = p.crouching ? 0.15 : 0;
     rig.group.updateMatrixWorld(true);
@@ -119,6 +125,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       const side = i === 0 ? 1 : -1, phase = Math.sin(p.phase + i * Math.PI);
       const local = new THREE.Vector3(side * (0.12 + (skating ? Math.max(0, phase) * 0.22 * moving : 0)), 0.22 + (skating ? Math.max(0, -phase) * 0.08 : Math.max(0, phase) * 0.1) * moving,
         skating ? phase * 0.09 * moving : phase * 0.28 * moving);
+      if (p.grabbing) local.set(side * 0.18, 0.48, 0.1);
       const target = rig.group.localToWorld(local.clone()); solve(leg[0], leg[1], leg[2], target, forward);
       rig.boots[i].group.position.copy(local).add(new THREE.Vector3(0, -0.22, 0));
       rig.boots[i].group.rotation.y = skating ? side * Math.max(0, phase) * 0.25 * moving : 0;
@@ -129,6 +136,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       const hand = new THREE.Vector3(side * 0.27, skating ? 1.03 : 0.91, (skating ? 0.13 : 0) - swing * 0.15 * moving);
       if (p.action === "talk") { hand.y += Math.sin(p.age * 2 + i) * 0.1; hand.z = 0.2; }
       if (p.action === "phone" && i === 0) hand.set(0.12, 1.47, 0.16);
+      if (p.grabbing && i === 0) hand.set(0.2, 0.62, 0.15);
       if (p.action === "wave" || p.action === "cheer" || (p.following && p.reaction > 0)) hand.set(side * (0.35 + Math.sin(p.age * 7) * 0.09), 1.78, 0.03);
       solve(arm[0], arm[1], arm[2], rig.group.localToWorld(hand.clone()), forward.clone().negate());
       if (i === 0) { rig.phone.position.copy(hand); rig.phone.position.z += 0.025; rig.cup.position.copy(hand); rig.cup.position.y += 0.035; }

@@ -8,7 +8,7 @@ try {
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   for (const [id, name] of [["race-motlawa", "Motława Dash"], ["race-olaya", "Olaya Boulevard Sprint"]]) {
-    await page.keyboard.press("m"); await page.getByRole("button", { name: new RegExp(`^Race: ${name}`) }).click();
+    await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: new RegExp(`^Race: ${name}`) }).click();
     await page.waitForFunction(() => window.__skate.state.race?.status === "countdown");
     const start = await page.evaluate(() => window.__skate.state);
     await page.keyboard.down("w");
@@ -36,7 +36,7 @@ try {
   }
   await page.reload(); await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   assert.equal(Object.keys(await page.evaluate(() => window.__skate.state.raceResults)).length, 2, "race records survive save loading");
-  await page.keyboard.press("m"); await page.getByRole("button", { name: /^Race: Dockyard Circuit/ }).click();
+  await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: /^Race: Dockyard Circuit/ }).click();
   await page.waitForFunction(() => window.__skate.state.race?.status === "racing");
   await page.locator("#race-restart").click();
   assert.equal(await page.evaluate(() => window.__skate.state.race.status), "countdown");
@@ -49,6 +49,7 @@ try {
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
   await phone.getByRole("button", { name: "Open world map", exact: true }).tap();
+  await phone.locator("#map-travel-mode").tap();
   await phone.getByRole("button", { name: /^Race: Motława Dash/ }).tap();
   await phone.waitForFunction(() => window.__skate.state.race?.status === "countdown");
   await phone.screenshot({ path: "releases/phone-race-v12.png" });

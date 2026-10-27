@@ -32,6 +32,32 @@ for (const city of ["gdansk", "riyadh"] as const) {
           : "Field note: a community stage and market stall turn this court into a festival space." })), limit: kind === "delivery" ? 180 : null });
   }
 }
+// Keep the original IDs and positions so existing saves remain valid. New jobs
+// occupy two other corners of every district, rather than stacking at one board.
+for (const original of [...quests]) {
+  const city = original.city, parts = original.id.split("-"), ix = Number(parts[2]), iz = Number(parts[3]);
+  const cx = centers[city] - 600 + ix * 400, cz = -600 + iz * 400;
+  const sites: DistrictSite[] = [];
+  for (let x = 0; x < 8; x++) for (let z = 0; z < 8; z++) sites.push(...districtSites(centers[city] - 700 + x * 200, -700 + z * 200, city).filter(s => s.size >= 24 && Math.abs(s.x - cx) < 200 && Math.abs(s.z - cz) < 200));
+  const used = [original.anchor];
+  for (let variant = 0; variant < 2; variant++) {
+    const desired = { x: cx + (variant ? 110 : -110), z: cz + (variant ? -110 : 110) };
+    const site = sites.filter(s => used.every(p => Math.hypot(s.x - p.x, s.z - p.z) > 65)).sort((a, b) => Math.hypot(a.x - desired.x, a.z - desired.z) - Math.hypot(b.x - desired.x, b.z - desired.z))[0];
+    if (!site) throw Error(`Missing additional quest court in ${original.id}`);
+    used.push(site);
+    const kind = kinds[(kinds.indexOf(original.kind) + variant + 1) % 4];
+    const local = sites.filter(s => s.id !== site.id).sort((a, b) => Math.hypot(a.x - site.x, a.z - site.z) - Math.hypot(b.x - site.x, b.z - site.z)).slice(0, 3);
+    const giver = (city === "gdansk" ? ["Zofia", "Bartek", "Marta", "Lena", "Kuba", "Ola"] : ["Reem", "Khalid", "Sara", "Amal", "Rakan", "Lina"])[(ix * 4 + iz + variant * 3) % 6];
+    const area = themeNames[site.theme];
+    const title = kind === "delivery" ? `${site.theme === "festival" ? "Festival setup" : city === "gdansk" ? "Community repair" : "Market breakfast"} run`
+      : kind === "collect" ? `${site.theme === "garden" || site.theme === "oasis" ? "Garden volunteers" : "Courtyard crew"}: missing kit`
+      : kind === "discover" ? `${city === "gdansk" ? "Baltic backcourts" : "Hidden palm courts"} trail` : `${area}: skate showcase`;
+    quests.push({ id: `${original.id}-${variant ? "culture" : "community"}`, title, city, giver, kind, area: `${area} · ${original.area.split(" · ")[1]}`,
+      request: `${giver}: Layan, ${kind === "delivery" ? "help get three orders to our neighbours, then return here. You have three minutes." : kind === "collect" ? "our crew left three crates around these courts. Find them in any order, then bring them back." : kind === "discover" ? "let’s map our favourite hidden courts. Inspect three places and bring your notes back." : "show the neighbours your skating! Bank 300 points nearby, then come back to me."}`,
+      reward: kind === "delivery" ? 200 : kind === "style" ? 180 : 160, anchor: { x: site.x, z: site.z }, limit: kind === "delivery" ? 180 : null,
+      objectives: kind === "style" ? [] : local.map((s, n) => ({ x: s.x, z: s.z, label: kind === "discover" ? themeNames[s.theme] : kind === "delivery" ? `Neighbourhood order ${n + 1}` : ["Tools and spare wheels", "Lanterns and art supplies", "Community event kit"][n], detail: kind === "discover" ? `Field note: ${themeNames[s.theme].toLowerCase()} — ${city === "gdansk" ? "Baltic brick, green planting and local skating" : "warm stone, shaded stops and local gathering places"}.` : undefined })) });
+  }
+}
 export type QuestSnapshot = { id: string; stage: "objectives" | "return" | "complete" | "failed"; visited: number[]; stylePoints: number; elapsed: number };
 export function validQuestSnapshot(value: unknown): value is QuestSnapshot {
   const v = value as QuestSnapshot, definition = v && quests.find(q => q.id === v.id);

@@ -57,6 +57,7 @@ try {
   assert.ok(riyadh.position.y > 0);
   await page.screenshot({ path: "/tmp/skate-riyadh.png" });
   await page.keyboard.press("m");
+  await page.locator("#map-travel-mode").click();
   await page.getByRole("button", { name: "Motława Quay · SPRINT" }).click();
   await page.waitForTimeout(500);
   await page

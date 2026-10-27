@@ -18,8 +18,7 @@ export class RaceRun {
   elapsed = 0;
   status: "countdown" | "racing" | "finished" | "timeout" = "countdown";
   entrants: RacerProgress[];
-  constructor(readonly definition: RaceDefinition) {
-    const names = definition.city === "gdansk" ? ["You", "Marta", "Kuba", "Ola"] : ["You", "Noura", "Omar", "Hana"];
+  constructor(readonly definition: RaceDefinition, names = definition.city === "gdansk" ? ["Layan", "Marta", "Kuba", "Ola"] : ["Layan", "Noura", "Omar", "Hana"]) {
     this.entrants = names.map((name, n) => ({ id: n === 0 ? "player" : `rival-${n}`, name, gate: 0, position: { ...definition.start }, finish: null, place: null }));
   }
   get player() { return this.entrants[0]; }

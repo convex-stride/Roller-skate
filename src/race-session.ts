@@ -7,10 +7,10 @@ export class RaceSession {
   run: RaceRun;
   recorded = false;
   rivals: { skater: Skater; id: string; lane: number; skill: number; name: string }[];
-  constructor(readonly world: RAPIER.World, readonly player: Skater, definition: RaceDefinition) {
-    this.run = new RaceRun(definition);
+  constructor(readonly world: RAPIER.World, readonly player: Skater, definition: RaceDefinition, readonly duet = false) {
+    this.run = new RaceRun(definition, duet ? ["Layan", "Taqee"] : undefined);
     player.reset(definition.start.x, definition.start.z); player.heading = definition.heading;
-    this.rivals = [-1.8, -0.9, 0.9].map((lane, index) => {
+    this.rivals = (duet ? [-1.2] : [-1.8, -0.9, 0.9]).map((lane, index) => {
       const x = definition.start.x + Math.cos(definition.heading) * lane;
       const z = definition.start.z - Math.sin(definition.heading) * lane;
       const skater = new Skater(world, x, z); skater.heading = definition.heading;

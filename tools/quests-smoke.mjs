@@ -42,7 +42,8 @@ try {
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   await page.keyboard.press("j");
-  assert.equal(await page.locator("[data-quest]:visible").count(), 32);
+  await page.locator("#map-travel-mode").click();
+  assert.equal(await page.locator("[data-quest]:visible").count(), 96);
   assert.equal(await page.locator("[data-race]:visible").count(), 0);
   await page.screenshot({ path: "releases/layans-skate-quest-map.png" });
   await page.locator('[data-quest="quest-gdansk-0-3"]').click();
@@ -70,6 +71,7 @@ try {
   assert.deepEqual(await page.evaluate(() => window.__skate.state.completedQuests), ["quest-gdansk-0-3"]);
   assert.equal(await page.evaluate(() => window.__skate.state.quest), null);
   await page.keyboard.press("j");
+  await page.locator("#map-travel-mode").click();
   await page.locator('[data-quest="quest-riyadh-0-1"]').click();
   await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
   await page.screenshot({ path: "releases/layans-skate-riyadh-quest.png" });
@@ -82,6 +84,7 @@ try {
   assert.equal(await page.evaluate(() => window.__skate.state.quest), null);
   await page.setViewportSize({ width: 900, height: 650 });
   await page.keyboard.press("j");
+  await page.locator("#map-travel-mode").click();
   await page.locator('[data-quest="quest-riyadh-0-0"]').click();
   await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
   await page.locator("#quest-accept").click();
@@ -102,6 +105,7 @@ try {
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
   await phone.getByRole("button", { name: "Open world map", exact: true }).tap();
+  await phone.locator("#map-travel-mode").tap();
   await phone.getByRole("button", { name: "Quests", exact: true }).tap();
   await phone.locator('[data-quest="quest-riyadh-0-0"]').tap();
   await phone.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
@@ -118,5 +122,5 @@ try {
   const card = await phone.locator("#quest-card").boundingBox(); assert.ok(card.y + card.height < 393);
   const stick = await phone.locator("#touch-stick").boundingBox(); assert.ok(card.y + card.height <= stick.y, "quest card leaves landscape thumbstick clear");
   assert.deepEqual(errors, []);
-  console.log("32 quest destinations, real-input style and three-stop delivery completion, XP/reload, active quest restore/abandon and phone quest travel/layout passed; no runtime/shader errors.");
+  console.log("96 quest destinations, real-input style and three-stop delivery completion, XP/reload, active quest restore/abandon and phone quest travel/layout passed; no runtime/shader errors.");
 } finally { await browser.close(); }

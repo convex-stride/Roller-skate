@@ -26,6 +26,7 @@ try {
   // Begin the bridge traversal at the waterfront destination; the city now
   // starts along the quay instead of facing directly down the bridge.
   await page.keyboard.press("m");
+  await page.locator("#map-travel-mode").click();
   await page.getByRole("button", { name: /^Explore: Żuraw/ }).click();
   await page.waitForFunction(() => window.__skate.state.grounded);
   await page.keyboard.down("a");
@@ -51,6 +52,7 @@ try {
   const canvas = page.locator("#world-map"),
     rect = await canvas.boundingBox(),
     scale = Math.min(900 / 3800, 380 / 1800);
+  await page.locator("#map-pin-mode").click();
   await canvas.click({
     position: {
       x: ((450 - 1000 * scale) / 900) * rect.width,

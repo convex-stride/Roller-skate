@@ -20,7 +20,7 @@ The surrounding streets use recognizable local architectural character: narrow g
 
 ## What is not verified
 
-The neighbourhood workshops, gardens, art courts, festival stages, markets and their 32 quest givers are fictional gameplay content. Field notes describe those in-game scenes, rather than documenting real addresses or local history.
+The neighbourhood workshops, gardens, art courts, festival stages, markets and their 96 quests are fictional gameplay content. Field notes describe those in-game scenes, rather than documenting real addresses or local history. Layan and Taqee are fictional game characters.
 
 Street alignments, road widths, exact building dimensions, neighborhood adjacencies, street signs, and full landmark details are not guaranteed accurate. Outer districts still contain repeated modular geometry. Parked cars are static scene objects; they do not constitute a traffic simulation. Interiors are not reconstructed. Green Gate has traversable passages, while other landmark masses are exterior destinations.
 

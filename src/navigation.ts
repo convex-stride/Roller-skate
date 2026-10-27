@@ -135,12 +135,19 @@ export type MapState = {
   goal: Goal | null;
   racers?: Point[];
   completedQuests?: string[];
+  partner?: Point | null;
 };
 export class NavigationMap {
   radius = 110;
   route: Point[] = [];
   private lastGoal = "";
   private lastStart: Point = { x: Infinity, z: Infinity };
+  cityFocus: City | null = null;
+  largeScale(canvas: HTMLCanvasElement) { return Math.min(canvas.width / (this.cityFocus ? 1800 : 3800), (canvas.height - 40) / 1800); }
+  mapPoint(canvas: HTMLCanvasElement, clientX: number, clientY: number): Point {
+    const r = canvas.getBoundingClientRect(), scale = this.largeScale(canvas);
+    return { x: (((clientX - r.left) / r.width) * canvas.width - canvas.width / 2) / scale + (this.cityFocus ? centers[this.cityFocus] : 0), z: (((clientY - r.top) / r.height) * canvas.height - canvas.height / 2) / scale };
+  }
   setZoom(delta: number) {
     this.radius = Math.max(65, Math.min(240, this.radius + delta));
   }
@@ -167,11 +174,11 @@ export class NavigationMap {
     ctx.fillStyle = "#102225";
     ctx.fillRect(0, 0, w, h);
     const scale = large
-      ? Math.min(w / 3800, (h - 40) / 1800)
+      ? this.largeScale(canvas)
       : Math.min(w, h) / (2 * this.radius);
     const project = (x: number, z: number): [number, number] =>
       large
-        ? [w / 2 + x * scale, h / 2 + z * scale]
+        ? [w / 2 + (x - (this.cityFocus ? centers[this.cityFocus] : 0)) * scale, h / 2 + z * scale]
         : [
             w / 2 +
               (-(x - s.position.x) * Math.cos(s.heading) +
@@ -291,7 +298,10 @@ export class NavigationMap {
     for (const quest of quests) {
       if (!large && Math.hypot(quest.anchor.x - s.position.x, quest.anchor.z - s.position.z) > this.radius) continue;
       const [x, y] = project(quest.anchor.x, quest.anchor.z); ctx.fillStyle = s.completedQuests?.includes(quest.id) ? "#8ecea0" : "#f0ca81";
-      ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x + 4, y); ctx.lineTo(x, y + 4); ctx.lineTo(x - 4, y); ctx.closePath(); ctx.fill();
+      const size = large ? Math.max(4, 5 * canvas.width / Math.max(1, canvas.clientWidth)) : 4;
+      ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#203b3d"; ctx.lineWidth = 1.5; ctx.stroke();
+      if (large && this.cityFocus === quest.city && canvas.clientWidth > 450) { ctx.fillStyle = "#f7e7b2"; ctx.font = `bold ${Math.round(9 * canvas.width / canvas.clientWidth)}px Arial`; ctx.fillText(String(quests.indexOf(quest) + 1), x + size + 2, y - size); }
     }
     for (const race of races) {
       const [x, y] = project(race.start.x, race.start.z);
@@ -301,6 +311,10 @@ export class NavigationMap {
     }
     for (const rival of s.racers ?? []) {
       const [x, y] = project(rival.x, rival.z); ctx.fillStyle = "#faab79"; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    if (s.partner) {
+      const [x, y] = project(s.partner.x, s.partner.z); ctx.fillStyle = "#8ddcf4"; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#c4f0ff"; ctx.font = "bold 10px Arial"; ctx.fillText("TAQEE", x + 8, y - 5);
     }
     for (const a of activities) {
       const [x, y] = project(a.x, a.z);
@@ -336,6 +350,7 @@ export class NavigationMap {
       ctx.lineTo(x - 8, y);
       ctx.closePath();
       ctx.stroke();
+      if (large) { ctx.font = "bold 11px Arial"; ctx.fillStyle = "#e8f5bd"; ctx.fillText(s.goal.label.slice(0, 48), Math.max(8, Math.min(w - 270, x + 12)), Math.max(18, Math.min(h - 12, y - 13))); }
     }
     const [px, py] = project(s.position.x, s.position.z);
     ctx.save();
@@ -381,16 +396,7 @@ export class NavigationMap {
     clientX: number,
     clientY: number,
   ): Point | null {
-    const r = canvas.getBoundingClientRect(),
-      scale = Math.min(canvas.width / 3800, (canvas.height - 40) / 1800);
-    const p = {
-      x:
-        (((clientX - r.left) / r.width) * canvas.width - canvas.width / 2) /
-        scale,
-      z:
-        (((clientY - r.top) / r.height) * canvas.height - canvas.height / 2) /
-        scale,
-    };
+    const p = this.mapPoint(canvas, clientX, clientY);
     return inWorld(p.x, p.z) && clearGround(p.x, p.z, 0.7) ? p : null;
   }
 }

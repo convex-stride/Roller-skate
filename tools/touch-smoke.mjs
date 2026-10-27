@@ -39,6 +39,7 @@ try {
   await page.screenshot({ path: "releases/phone-settings-v10.png" });
   await page.locator("#settings-back").tap(); await page.locator("#resume").tap();
   await page.getByRole("button", { name: "Open world map", exact: true }).tap();
+  await page.locator("#map-travel-mode").tap();
   await page.getByRole("button", { name: /^Ride: Rooftop leap/ }).tap();
   await page.waitForFunction(() => window.__skate.state.spot?.id === "garden-gap");
   await page.setViewportSize({ width: 852, height: 393 });

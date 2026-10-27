@@ -15,10 +15,10 @@ describe("district activities and quests", () => {
     }
     expect(count).toBeGreaterThan(600);
   });
-  it("provides thirty-two reachable local quests with a mix of jobs in each city", () => {
-    expect(quests).toHaveLength(32); expect(new Set(quests.map(q => q.id)).size).toBe(32);
+  it("provides ninety-six reachable local quests with a mix of jobs in each city", () => {
+    expect(quests).toHaveLength(96); expect(new Set(quests.map(q => q.id)).size).toBe(96);
     for (const city of ["gdansk", "riyadh"] as const) {
-      const local = quests.filter(q => q.city === city); expect(local).toHaveLength(16); expect(new Set(local.map(q => q.kind)).size).toBe(4);
+      const local = quests.filter(q => q.city === city); expect(local).toHaveLength(48); expect(new Set(local.map(q => q.kind)).size).toBe(4);
     }
     for (const q of quests) {
       expect(clearGround(q.anchor.x, q.anchor.z, 1)).toBe(true);

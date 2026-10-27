@@ -44,6 +44,7 @@ try {
     ["Masmak", "masmak"],
   ]) {
     await page.keyboard.press("m");
+    await page.locator("#map-travel-mode").click();
     await page
       .getByRole("button", { name: new RegExp("^Explore: " + name) })
       .click();

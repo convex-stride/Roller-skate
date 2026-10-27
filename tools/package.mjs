@@ -59,13 +59,15 @@ await writeFile(resolve(root, "releases/Between-Cities-Alive.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Races.html"), html);
 await writeFile(resolve(root, "releases/Layans-Skate.html"), html);
 await writeFile(resolve(root, "releases/Layans-Skate-Quests.html"), html);
+await writeFile(resolve(root, "releases/Layans-Skate-Taqee.html"), html);
 execFileSync(
   "zip",
-  ["-q", "-FS", "-r", resolve(root, "releases/layans-skate-v0.14.zip"), "."],
+  ["-q", "-FS", "-r", resolve(root, "releases/layans-skate-v0.15.zip"), "."],
   { cwd: dist },
 );
 console.log(
   "Packaged releases/Layans-Skate.html (self-contained browser build)",
 );
 console.log("Packaged releases/Layans-Skate-Quests.html (quest update)");
-console.log("Packaged releases/layans-skate-v0.14.zip (itch.io build)");
+console.log("Packaged releases/Layans-Skate-Taqee.html (companion update)");
+console.log("Packaged releases/layans-skate-v0.15.zip (itch.io build)");

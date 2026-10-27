@@ -24,7 +24,7 @@ try {
   await page.keyboard.press("Escape"); await page.locator("#riyadh").click();
   await page.waitForFunction(() => window.__skate.state.crowd.visible > 30 && window.__skate.state.crowd.following === null);
   await page.screenshot({ path: "releases/riyadh-residents-v11.png" });
-  await page.keyboard.press("m"); await page.getByRole("button", { name: /^Ride: Rooftop leap/ }).click();
+  await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: /^Ride: Rooftop leap/ }).click();
   await page.waitForFunction(() => window.__skate.state.crowd.actions.cheer > 0);
   await page.screenshot({ path: "releases/garden-spectators-v11.png" });
   console.log(JSON.stringify({ initial: first.crowd.visible, moving: moving.actions, current: await page.evaluate(() => window.__skate.state.crowd), errors }));

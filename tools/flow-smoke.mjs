@@ -34,6 +34,7 @@ try {
   await page.screenshot({ path: "releases/riyadh-flow-v06.png" });
   // The new city start faces Masmak; use the skyline destination for the arterial run.
   await page.keyboard.press("m");
+  await page.locator("#map-travel-mode").click();
   await page.getByRole("button", { name: /^Explore: Kingdom Centre/ }).click();
   await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
   const time = await page.evaluate(() => window.__skate.state.simTime);

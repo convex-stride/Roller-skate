@@ -1,5 +1,6 @@
 import { clearGround, hash, inWorld } from "./world";
 import { spots } from "./spots";
+import { quests } from "./quests";
 
 export type CrowdRole = "skater" | "walker" | "social" | "vendor" | "spectator";
 export type CrowdAction = "push" | "coast" | "walk" | "talk" | "phone" | "wave" | "cheer" | "yield" | "rideAlong";
@@ -10,6 +11,8 @@ export type CrowdPerson = CrowdPoint & {
   reaction: number; action: CrowdAction; distance: number; ground: number;
   following: boolean; stuck: number; traveled: number;
   crouching?: boolean;
+  airRotation?: number;
+  grabbing?: boolean;
 };
 export type CrowdPlayer = CrowdPoint & { heading: number; speed: number; score: number };
 type Probe = (x: number, z: number, fromX: number, fromZ: number) => number | null;
@@ -78,6 +81,12 @@ export class CrowdDirector {
         add("spectator", [[spot.x + side * 12, spot.z - 18], [spot.x + side * 13, spot.z - 15]], 5);
         add("social", [[spot.x + side * sideX, spot.z - end], [spot.x + side * sideX, spot.z - end + 4]], 3);
       }
+    }
+    // Small local routines give the outer activity courts residents of their own.
+    for (const q of quests) {
+      const { x, z } = q.anchor;
+      add("walker", [[x - 3, z - 3], [x + 3, z - 3], [x + 3, z + 3], [x - 3, z + 3]], 2);
+      add(q.kind === "style" ? "spectator" : "social", [[x - 2, z + 2], [x - 1, z + 2]], 2);
     }
     this.ambientStart = this.people.length;
     for (let n = 0; n < 32; n++) {

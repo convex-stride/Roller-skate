@@ -9,7 +9,7 @@ try {
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   for (const [id, name, height] of [["dock", "Container hop", 1.8], ["garden", "Rooftop leap", 3]]) {
-    await page.keyboard.press("m"); await page.getByRole("button", { name: new RegExp(`^Ride: ${name}`) }).click();
+    await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: new RegExp(`^Ride: ${name}`) }).click();
     await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
     await page.screenshot({ path: `releases/${id}-spot-v10.png` });
     await page.keyboard.down("w");
