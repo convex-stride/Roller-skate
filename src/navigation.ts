@@ -8,7 +8,9 @@ import {
   tokens,
   type City,
   type Activity,
+  districtSites,
 } from "./world";
+import { quests } from "./quests";
 import { landmarks } from "./city-profile";
 import { spots, courses } from "./spots";
 import { races } from "./races";
@@ -16,6 +18,20 @@ export type Point = { x: number; z: number };
 export type Goal = Point & { label: string };
 const cell = 10;
 const groundCache = new Map<string, boolean>();
+const edgeCache = new Map<string, boolean>();
+function clearSegment(a: Point, b: Point) {
+  const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.75));
+  for (let i = 0; i <= steps; i++) if (!clearGround(a.x + (b.x - a.x) * i / steps, a.z + (b.z - a.z) * i / steps, 0.7)) return false;
+  return true;
+}
+function clearEdge(ax: number, az: number, bx: number, bz: number) {
+  const a = `${ax}:${az}`, b = `${bx}:${bz}`, key = a < b ? `${a}/${b}` : `${b}/${a}`;
+  if (!edgeCache.has(key)) {
+    if (edgeCache.size > 150000) edgeCache.clear();
+    edgeCache.set(key, clearSegment({ x: ax * cell, z: az * cell }, { x: bx * cell, z: bz * cell }));
+  }
+  return edgeCache.get(key)!;
+}
 function traversable(x: number, z: number) {
   const key = `${x}:${z}`;
   if (!groundCache.has(key))
@@ -31,10 +47,7 @@ export function findRoute(start: Point, end: Point): Point[] {
     gz = Math.round(end.z / cell);
   const key = (x: number, z: number) => `${x}:${z}`;
   type Node = { x: number; z: number; g: number; f: number; parent?: Node };
-  const open: Node[] = [
-      { x: sx, z: sz, g: 0, f: Math.hypot(gx - sx, gz - sz) },
-    ],
-    best = new Map<string, number>([[key(sx, sz), 0]]);
+  const open: Node[] = [], best = new Map<string, number>();
   function push(n: Node) {
     open.push(n);
     let i = open.length - 1;
@@ -62,11 +75,19 @@ export function findRoute(start: Point, end: Point): Point[] {
     }
     return top;
   }
+  // Connect the actual rider position to a clear grid point; rounding alone can
+  // put a route inside a thin stall or planter beside a courtyard entrance.
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    const x = sx + dx, z = sz + dz;
+    if (!traversable(x, z) || !clearSegment(start, { x: x * cell, z: z * cell })) continue;
+    const g = Math.hypot(start.x / cell - x, start.z / cell - z);
+    best.set(key(x, z), g); push({ x, z, g, f: g + Math.hypot(gx - x, gz - z) });
+  }
   let visited = 0;
   while (open.length && visited++ < 16000) {
     const n = pop();
     if (n.g > (best.get(key(n.x, n.z)) ?? Infinity)) continue;
-    if (Math.hypot(n.x - gx, n.z - gz) < 1.5) {
+    if (Math.hypot(n.x - gx, n.z - gz) < 2 && clearSegment({ x: n.x * cell, z: n.z * cell }, end)) {
       const result: Point[] = [end];
       let p: Node | undefined = n;
       while (p) {
@@ -89,7 +110,7 @@ export function findRoute(start: Point, end: Point): Point[] {
       const x = n.x + dx,
         z = n.z + dz;
       if (
-        !traversable(x, z) ||
+        !traversable(x, z) || !clearEdge(n.x, n.z, x, z) ||
         (dx &&
           dz &&
           (!traversable(n.x + dx, n.z) || !traversable(n.x, n.z + dz)))
@@ -113,6 +134,7 @@ export type MapState = {
   rails: { x: number; z: number; length: number; axis: "x" | "z" }[];
   goal: Goal | null;
   racers?: Point[];
+  completedQuests?: string[];
 };
 export class NavigationMap {
   radius = 110;
@@ -202,8 +224,7 @@ export class NavigationMap {
             continue;
           for (const road of streets(x, z, city))
             rect(road.x, road.z, road.w, road.d, city === "gdansk" ? "#77867a" : "#717879");
-          if (city === "gdansk" && !(Math.abs(x + 1000) < 101 && Math.abs(z) < 101))
-            for (const side of [-1, 1]) rect(x + side * 65, z + 12, 42, 126, "#465f47");
+          for (const site of districtSites(x, z, city)) rect(site.x, site.z, site.size, site.size, site.theme === "garden" || site.theme === "oasis" ? "#648367" : site.theme === "art" ? "#688f96" : city === "gdansk" ? "#8b8469" : "#a58c61");
           for (const b of buildings(x, z, city)) {
             rect(b.x + 1, b.z + 1, b.w, b.d, "#192b2b");
             rect(b.x, b.z, b.w, b.d, city === "gdansk" ? "#98a99a" : "#b5aa87");
@@ -266,6 +287,11 @@ export class NavigationMap {
       const [x, y] = project(t.x, t.z);
       ctx.fillStyle = "#e7edbb";
       ctx.fillRect(x - 2, y - 2, 4, 4);
+    }
+    for (const quest of quests) {
+      if (!large && Math.hypot(quest.anchor.x - s.position.x, quest.anchor.z - s.position.z) > this.radius) continue;
+      const [x, y] = project(quest.anchor.x, quest.anchor.z); ctx.fillStyle = s.completedQuests?.includes(quest.id) ? "#8ecea0" : "#f0ca81";
+      ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x + 4, y); ctx.lineTo(x, y + 4); ctx.lineTo(x - 4, y); ctx.closePath(); ctx.fill();
     }
     for (const race of races) {
       const [x, y] = project(race.start.x, race.start.z);

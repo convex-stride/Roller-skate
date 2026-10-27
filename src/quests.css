@@ -1,0 +1,16 @@
+#quest-card { position: absolute; left: 32px; top: 108px; width: 300px; padding: 18px; background: #16343bf2; border: 1px solid #a5c3b966; border-top: 4px solid #f0cd82; border-radius: 6px; pointer-events: auto; }
+#quest-card small { display: block; color: #e6cd95; font-size: 9px; line-height: 1.5; letter-spacing: .08em; }
+#quest-title { display: block; font-size: 23px; line-height: 1.1; margin: 8px 0; }
+#quest-dialogue { font-size: 12px; line-height: 1.5; margin: 10px 0; }
+#quest-objective { display: block; color: #e6f2ae; font-size: 13px; line-height: 1.5; }
+#quest-progress { display: block; font-size: 12px; margin: 5px 0; color: #f1d29a; }
+#quest-xp { margin: 8px 0; }
+.quest-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.quest-actions button { font-size: 11px; padding: 9px 12px; }
+#quest-accept, #quest-interact { background: #e4efb1; color: #193a3e; font-weight: 700; }
+body.touch-play #quest-card { top: max(65px, calc(env(safe-area-inset-top) + 50px)); left: 12px; width: min(225px, calc(100vw - 145px)); padding: 10px; }
+body.touch-play #quest-title { font-size: 17px; }
+body.touch-play #quest-dialogue { font-size: 10px; margin: 6px 0; }
+body.touch-play #quest-objective { font-size: 11px; }
+body.touch-play .quest-actions button { min-height: 44px; padding: 7px; font-size: 10px; }
+@media (orientation: landscape) and (max-height: 550px) { body.touch-play #quest-card { width: 225px; top: 60px; padding: 8px; } body.touch-play #quest-title { font-size: 14px; margin: 5px 0; } body.touch-play #quest-dialogue, body.touch-play #quest-xp { display: none; } body.touch-play #quest-progress { margin: 2px 0; } }

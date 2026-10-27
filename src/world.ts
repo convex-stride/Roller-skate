@@ -1,6 +1,8 @@
 import { landmarkAt, inHeritageSquare, heritageShops } from "./city-profile";
 import { insideSpot, spots } from "./spots";
 import { parkObstacleAt } from "./park-layouts";
+import { races } from "./races";
+import { makeDistrictSites, districtPropAt, type DistrictSite } from "./district-content";
 export const CITY_SIZE = 1600;
 export const CHUNK = 200;
 export type City = "gdansk" | "riyadh";
@@ -51,7 +53,13 @@ export type Building = {
 };
 export type Street = { x: number; z: number; w: number; d: number };
 /** The renderer and navigation use the same street footprints. No overlapping junction faces. */
+const streetCache = new Map<string, Street[]>();
 export function streets(cx: number, cz: number, city: City): Street[] {
+  const key = `${city}:${cx}:${cz}`;
+  if (!streetCache.has(key)) streetCache.set(key, makeStreets(cx, cz, city));
+  return streetCache.get(key)!;
+}
+function makeStreets(cx: number, cz: number, city: City): Street[] {
   if (city === "gdansk") {
     const result: Street[] = [{ x: cx, z: cz, w: 200, d: 7 }];
     for (const side of [-1, 1])
@@ -167,7 +175,8 @@ export type Activity = {
   x: number;
   z: number;
 };
-export function clearGround(x: number, z: number, margin = 2) {
+const clearanceBuildings = new Map<string, Building[]>();
+export function clearGroundBase(x: number, z: number, margin = 2) {
   if (!inWorld(x, z)) return false;
   if (Math.abs(x) < 200) return true;
   const city = cityAt(x),
@@ -179,21 +188,53 @@ export function clearGround(x: number, z: number, margin = 2) {
     if (parkObstacleAt(s, x, z, margin)) return false;
   }
   if (heritageShops.some(b => Math.abs(x - b.x) < b.w / 2 + margin + 4 && Math.abs(z - b.z) < b.d / 2 + margin)) return false;
-  return [-1, 0, 1]
-    .flatMap((dx) =>
-      [-1, 0, 1].flatMap((dz) =>
-        buildings(
-          centers[city] - 700 + (ix + dx) * 200,
-          -700 + (iz + dz) * 200,
-          city,
-        ),
-      ),
-    )
-    .every(
+  const key = `${city}:${ix}:${iz}`;
+  if (!clearanceBuildings.has(key)) {
+    const nearby: Building[] = [];
+    for (const dx of [-1, 0, 1]) for (const dz of [-1, 0, 1]) nearby.push(...buildings(centers[city] - 700 + (ix + dx) * 200, -700 + (iz + dz) * 200, city));
+    clearanceBuildings.set(key, nearby);
+  }
+  return clearanceBuildings.get(key)!.every(
       (b) =>
         Math.abs(x - b.x) > b.w / 2 + margin + (b.style === "najdi" ? 4 : 0) ||
         Math.abs(z - b.z) > b.d / 2 + margin,
     );
+}
+const neighborhoodCache = new Map<string, { x: number; z: number; city: City }[]>();
+function neighboringCells(x: number, z: number) {
+  const city = cityAt(x), center = centers[city], ix = Math.floor((x - center + 800) / 200), iz = Math.floor((z + 800) / 200);
+  const key = `${city}:${ix}:${iz}`;
+  if (neighborhoodCache.has(key)) return neighborhoodCache.get(key)!;
+  const cells: { x: number; z: number; city: City }[] = [];
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (ix + dx >= 0 && ix + dx < 8 && iz + dz >= 0 && iz + dz < 8) cells.push({ x: center - 700 + (ix + dx) * 200, z: -700 + (iz + dz) * 200, city });
+  neighborhoodCache.set(key, cells);
+  return cells;
+}
+export function onStreet(x: number, z: number, margin = 0) {
+  if (Math.abs(x) < 200) return true;
+  return neighboringCells(x, z).some(c => streets(c.x, c.z, c.city).some(r => Math.abs(x - r.x) < r.w / 2 + margin && Math.abs(z - r.z) < r.d / 2 + margin));
+}
+function distanceToSegment(x: number, z: number, a: { x: number; z: number }, b: { x: number; z: number }) {
+  const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / Math.max(1, dx * dx + dz * dz)));
+  return Math.hypot(x - a.x - dx * t, z - a.z - dz * t);
+}
+export function protectedActivityGround(x: number, z: number, margin: number) {
+  if (Math.abs(x) < 200 + margin || insideSpot(x, z, margin + 4) || inHeritageSquare(x, z, margin + 10) || landmarkAt(x, z, margin + 10)) return true;
+  const city = cityAt(x);
+  if (Math.abs(x - centers[city]) < 140 + margin && Math.abs(z) < 210 + margin) return true;
+  if (x < 0 && x > -1120 - margin && x < -880 + margin && z > 62 - margin && z < 134 + margin) return true;
+  return races.some(r => [r.start, ...r.checkpoints].slice(1).some((p, i) => distanceToSegment(x, z, [r.start, ...r.checkpoints][i], p) < 8 + margin));
+}
+const districtCache = new Map<string, DistrictSite[]>();
+export function districtSites(cx: number, cz: number, city: City) {
+  const key = `${city}:${cx}:${cz}`;
+  if (!districtCache.has(key)) districtCache.set(key, makeDistrictSites(cx, cz, city, (x, z, radius) =>
+    clearGroundBase(x, z, radius + 1) && !onStreet(x, z, radius + 3) && !protectedActivityGround(x, z, radius)));
+  return districtCache.get(key)!;
+}
+export function clearGround(x: number, z: number, margin = 2) {
+  if (!clearGroundBase(x, z, margin)) return false;
+  return !neighboringCells(x, z).some(c => districtPropAt(districtSites(c.x, c.z, c.city), x, z, margin));
 }
 function safePoint(x: number, z: number) {
   if (clearGround(x, z)) return { x, z };

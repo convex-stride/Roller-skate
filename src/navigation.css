@@ -89,6 +89,7 @@
 .map-key > span:nth-child(2) i {
   background: #e7edbb;
 }
+.map-key .quest-key i { background: #f0cd82; transform: rotate(45deg); }
 .map-large {
   cursor: crosshair;
   border-radius: 0;

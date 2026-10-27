@@ -487,35 +487,14 @@ export function streetDetails(
     }
   }
   if (arrival || waterfront || insideSpot(cx, cz, 100) || (city === "riyadh" && inHeritageSquare(cx, cz, 100))) return;
-  if (historic) {
-    // Green courtyards behind close-set merchant terraces, narrow stone lanes.
+  // Street lamps stay at the edges; the off-street district builder owns the lots.
+  for (const road of streets(cx, cz, city)) {
+    if (road.d < 70 || road.w > 32) continue;
     for (const side of [-1, 1]) {
-      const x = cx + side * 65;
-      box(g, x, 0.03, cz + 12, 42, 0.025, 126, 0x7d906b);
-      for (const dz of [-43, 12, 65]) tree(g, x + side * 9, cz + dz, city);
-      box(g, x, 0.31, cz - 18, 1.2, 0.62, 15, 0x8e9a89, true);
-      rail(g, x - side * 11, cz + 23, 12);
-      for (const dz of [-62, 54]) {
-        const px = cx + side * 8 + Math.sin((cz + dz) * 0.012) * 5;
-        cylinder(g, px, 2.6, cz + dz, 0.065, 5.2, 0x354a43);
-        box(g, px, 5.2, cz + dz, 0.7, 0.15, 0.7, 0xe2d9bb);
-      }
+      const px = road.x + side * (road.w / 2 + 1.4);
+      cylinder(g, px, 2.7, road.z, 0.065, 5.4, historic ? 0x3b5552 : 0x9a815c);
+      box(g, px, 5.4, road.z, 0.8, 0.14, 0.8, 0xe3d4a9);
     }
-  } else {
-    // Large limestone courts, palms and high shade structures between towers.
-    const plaza = box(g, cx, 0.035, cz, 52, 0.025, 176, 0xdcc7a4);
-    plaza.material = surface("paving", 0xe1ceae);
-    for (const side of [-1, 1]) {
-      for (const dz of [-72, -24, 24, 72]) tree(g, cx + side * 18, cz + dz, city);
-      for (const dz of [-65, 65]) {
-        cylinder(g, cx + side * 22, 3.6, cz + dz, 0.18, 7.2, 0xb3a083);
-        for (let slat = -3; slat <= 3; slat++)
-          box(g, cx + side * 15, 7.25, cz + dz + slat * 1.5, 16, 0.2, 0.6, 0x9c805c);
-      }
-      box(g, cx + side * 14, 0.34, cz, 1.6, 0.68, 24, 0xb29d7c, true);
-    }
-    rail(g, cx - 7, cz - 30, 18);
-    box(g, cx + 6, 0.6, cz + 28, 7, 0.22, 9, 0xc2ad89, true, -0.12);
   }
 }
 

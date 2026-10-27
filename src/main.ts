@@ -12,6 +12,9 @@ import { createCrowd } from "./crowd-scene";
 import { races, placeLabel, type RaceDefinition } from "./races";
 import { RaceSession } from "./race-session";
 import { buildRaceScene } from "./race-scene";
+import { decorateDistrict } from "./district-scene";
+import { quests, QuestRun, questXP, validQuestSnapshot, type QuestDefinition, type QuestSnapshot } from "./quests";
+import { buildQuestScene } from "./quest-scene";
 import { landmarks as cityLandmarks, cityStarts, practiceRails } from "./city-profile";
 import { menus } from "./menus";
 import { loadPreferences, bindPreferences, type Preferences } from "./settings";
@@ -37,6 +40,7 @@ import "./menus.css";
 import "./navigation.css";
 import "./touch.css";
 import "./races.css";
+import "./quests.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const uiArrow =
@@ -48,11 +52,13 @@ app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></c
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.13 / PARKS EVERYWHERE").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.14 / NEIGHBOURHOOD QUESTS").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
 const el = (id: string) => document.getElementById(id)!;
+el("hud").insertAdjacentHTML("beforeend", `<aside id="quest-card" class="hidden" aria-label="Neighbourhood quest"><small id="quest-area"></small><strong id="quest-title"></strong><p id="quest-dialogue"></p><b id="quest-objective"></b><span id="quest-progress"></span><small id="quest-xp"></small><div class="quest-actions"><button id="quest-accept">Accept quest</button><button id="quest-interact">Interact</button><button id="quest-abandon">Abandon quest</button><button id="quest-close">Close</button></div></aside>`);
+el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>J · Neighbourhood quests</b>Find local jobs · Enter / Y to accept or interact</div>");
 el("hud").insertAdjacentHTML("beforeend", `<aside id="spot-card" aria-label="Play a stunt spot"><small id="spot-kicker">NEW PLACES TO RIDE</small><strong id="spot-title"></strong><p id="spot-detail"></p><div class="spot-meter"><i id="spot-fill"></i></div><span id="spot-reward"></span><div class="spot-actions"><button id="spot-play">T · Ride the jump line</button><button id="spot-next">Try another</button><button id="spot-leave" hidden>End run</button></div></aside>`);
 el("hud").insertAdjacentHTML("beforeend", `<aside id="race-card" class="hidden" aria-label="Street race"><small id="race-area"></small><strong id="race-title"></strong><div id="race-stats"></div><ol id="race-standings"></ol><p id="race-best"></p><div class="race-actions"><button id="race-join">Join race</button><button id="race-restart">Restart race</button><button id="race-leave">Leave race</button></div></aside><div id="race-countdown" class="hidden" role="status" aria-live="polite"></div>`);
 el("outfit-status").insertAdjacentHTML("afterend", '<div class="headwear-review"><button id="headwear-detail" aria-pressed="false">Inspect headwear</button><label id="rider-turn-label" hidden>Turn rider<input id="rider-turn" aria-label="Turn rider" type="range" min="-180" max="180" value="0" step="1"></label></div>');
@@ -66,6 +72,7 @@ el("world-map").setAttribute(
   "aria-label",
   "World map. Click a clear street to place a navigation waypoint.",
 );
+el("map-zoom").insertAdjacentHTML("beforebegin", '<span class="quest-key"><i></i>QUEST</span>');
 document.querySelector(".map-label")!.textContent =
   "Click a street or plaza to place a waypoint. The minimap guides you around buildings and across the bridge. Choose an event below to travel to its start.";
 let preferences = loadPreferences();
@@ -77,6 +84,8 @@ type Save = {
   outfit: number;
   best: number;
   raceResults?: Record<string, { time: number; place: number; wins: number }>;
+  completedQuests?: string[];
+  questProgress?: QuestSnapshot;
 };
 let save: Save = { version: 1, collected: [], records: {}, outfit: 0, best: 0 };
 function validSave(v: unknown): v is Save {
@@ -99,6 +108,8 @@ function validSave(v: unknown): v is Save {
     s.outfit < 6 &&
     Number.isFinite(s.best) &&
     s.best >= 0 &&
+    (s.completedQuests === undefined || (Array.isArray(s.completedQuests) && new Set(s.completedQuests).size === s.completedQuests.length && s.completedQuests.every(id => quests.some(q => q.id === id)))) &&
+    (s.questProgress === undefined || validQuestSnapshot(s.questProgress)) &&
     (s.raceResults === undefined || (s.raceResults !== null && typeof s.raceResults === "object" && Object.entries(s.raceResults).every(([id, result]) =>
       races.some(r => r.id === id) && result !== null && typeof result === "object" && Number.isFinite(result.time) && result.time > 0 && Number.isInteger(result.place) && result.place >= 1 && result.place <= 4 && Number.isInteger(result.wins) && result.wins >= 0)))
   );
@@ -110,6 +121,7 @@ try {
   /* Session-only when storage is restricted. */
 }
 let saveFailed = false;
+const completionCount = () => Object.keys(save.records).length + (save.completedQuests?.length ?? 0);
 function persist() {
   try {
     localStorage.setItem("between-cities-v1", JSON.stringify(save));
@@ -428,6 +440,7 @@ async function boot() {
     scene.add(g);
     const kit = { box, cylinder, tree, rail, material };
     streetDetails(g, cx, cz, city, kit);
+    decorateDistrict(g, cx, cz, city, kit);
     for (const building of buildings(cx, cz, city))
       if (building.style === "modern") modernArchitecture(g, building, kit);
       else architecture(g, building, city, kit);
@@ -507,6 +520,7 @@ async function boot() {
   batchInstances(landmarks);
   const spotScene = buildSpots(scene, world, { box, cylinder, tree, rail, material });
   const raceScene = buildRaceScene(scene);
+  const questScene = buildQuestScene(scene);
   spotScene.groups.forEach(batchInstances);
   batchInstances(spotScene.group);
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
@@ -565,6 +579,10 @@ async function boot() {
     jumps: number;
   } | null = null;
   let nearest: Activity | undefined;
+  let nearestQuest: QuestDefinition | undefined;
+  let focusedQuest: QuestDefinition | null = null;
+  let dismissedQuest: string | null = null;
+  let questRun: QuestRun | null = save.questProgress ? new QuestRun(quests.find(q => q.id === save.questProgress!.id)!, skater.banked, save.questProgress) : null;
   let nearestRace: RaceDefinition | undefined;
   let raceSession: RaceSession | null = null;
   let lastCountdownLabel = "";
@@ -605,10 +623,10 @@ async function boot() {
     spotRun.tick({ ...p, grounded: skater.grounded, jumps: skater.jumpCount, score: skater.banked }, STEP);
     if (spotRun.status === "finished") {
       const c = spotRun.course, value = c.kind === "jam" ? skater.banked - spotRun.initialScore : spotRun.elapsed;
-      const before = Math.min(6, 2 + Math.floor(Object.keys(save.records).length / 2));
+      const before = Math.min(6, 2 + Math.floor(completionCount() / 2));
       const old = save.records[c.id];
       if (old === undefined || (c.kind === "jam" ? value > old : value < old)) save.records[c.id] = value;
-      const after = Math.min(6, 2 + Math.floor(Object.keys(save.records).length / 2));
+      const after = Math.min(6, 2 + Math.floor(completionCount() / 2));
       persist();
       el("spot-card").classList.add("celebrate");
       toast(`${spotRun.medal} · ${c.name}${after > before ? " · NEW JACKET UNLOCKED — Rider wardrobe" : " · Spot stamp saved"}`);
@@ -629,13 +647,13 @@ async function boot() {
       spotCity = nearbyPark.city; spotChoice = courses.filter(c => c.spot.city === spotCity).findIndex(c => c.spot.id === nearbyPark.id); suggestedPark = nearbyPark.id;
     }
     const c = spotRun?.course ?? selectedCourse(), running = spotRun?.status === "riding";
-    el("spot-card").classList.toggle("hidden", !!active || !!raceSession || !!nearestRace);
+    el("spot-card").classList.toggle("hidden", !!active || !!raceSession || !!nearestRace || (spotRun?.status !== "riding" && (!!focusedQuest || !!nearestQuest || !!questRun)));
     el("spot-kicker").textContent = spotRun?.status === "finished" ? `${spotRun.medal} MEDAL · STAMP EARNED` : spotRun?.status === "failed" ? "ONE MORE TRY?" : c.spot.name;
     el("spot-title").textContent = c.name;
     el("spot-detail").textContent = running
       ? `${Math.ceil(c.limit - spotRun!.elapsed)}s · ${c.kind === "jam" ? `${skater.banked - spotRun!.initialScore} / 300 banked points` : `${spotRun!.gate + 1}/${c.gates.length} · ${c.gates[spotRun!.gate].label}`}`
       : c.description;
-    const count = Object.keys(save.records).length, stamps = courses.filter(c => save.records[c.id] !== undefined).length;
+    const count = completionCount(), stamps = courses.filter(c => save.records[c.id] !== undefined).length;
     el("spot-reward").textContent = `${stamps}/${courses.length} spot stamps · ${count >= 8 ? "All jacket colours unlocked" : `${2 - count % 2} more completion${count % 2 ? "" : "s"} unlock a jacket`}`;
     el("spot-fill").style.width = `${spotRun?.status === "finished" ? 100 : running ? c.kind === "jam" ? Math.min(100, (skater.banked - spotRun!.initialScore) / 3) : spotRun!.gate / c.gates.length * 100 : 0}%`;
     el("spot-play").textContent = `${mobileDevice ? "" : "T · "}${running ? "Restart" : spotRun ? "Ride again" : "Start this run"}`;
@@ -729,9 +747,79 @@ async function boot() {
   el("race-leave").onclick = () => { stopRace(); canvas.focus(); toast("Free skate · race left"); };
   function startNearby() {
     if (raceSession) { if (raceSession.run.status === "finished" || raceSession.run.status === "timeout") startRace(raceSession.run.definition); return; }
+    if (focusedQuest || (nearestQuest && !questRun)) { acceptQuest(focusedQuest ?? nearestQuest!); return; }
+    if (questRun) { interactQuest(); return; }
     if (nearestRace) startRace(nearestRace);
     else if (nearest) startEvent(nearest);
     else startSpot(spotRun?.course ?? selectedCourse());
+  }
+  const questPlayer = () => ({ ...skater.body.translation(), speed: skater.speed, score: skater.banked });
+  function visitQuest(definition: QuestDefinition) {
+    stopRace(); stopSpot(); active = null; gate.visible = false; waypoint = null;
+    el("event").classList.add("hidden");
+    focusedQuest = questRun?.definition.id === definition.id ? null : definition;
+    skater.reset(definition.anchor.x, definition.anchor.z - 5); skater.heading = 0; lookYaw = 0;
+    safe = { x: definition.anchor.x, z: definition.anchor.z - 5 };
+    stream(true); closeMenus(); snapCamera(); toast(`${definition.giver} · ${definition.area}`);
+  }
+  function acceptQuest(definition: QuestDefinition) {
+    if (Math.hypot(skater.body.translation().x - definition.anchor.x, skater.body.translation().z - definition.anchor.z) > 8) { toast("Skate closer to the quest giver"); return; }
+    focusedQuest = null; dismissedQuest = null; questRun = new QuestRun(definition, skater.banked); save.questProgress = questRun.snapshot(); persist();
+    toast(`${definition.giver}: ${definition.kind === "delivery" ? "Bundle collected. Follow the first delivery marker." : definition.kind === "collect" ? "Find the three supply crates, then return here." : definition.kind === "discover" ? "Stop and inspect each marked place." : "Bank 300 points nearby, then come back."}`); canvas.focus();
+  }
+  function interactQuest() {
+    if (!questRun) return;
+    if (questRun.stage === "failed") { acceptQuest(questRun.definition); return; }
+    if (questRun.stage === "complete") return;
+    const result = questRun.interact(questPlayer());
+    if (result === "slow") toast("Slow down before interacting");
+    else if (result === "far") toast("Follow the quest marker and get within 5 m");
+    else if (result === "waiting") toast("Land and bank 300 points in this courtyard");
+    else if (result === "collected") {
+      const point = questRun.definition.objectives[questRun.visited.at(-1)!];
+      toast(point.detail ?? (questRun.stage === "return" ? `All done here · return to ${questRun.definition.giver}` : `${point.label} · ${questRun.visited.length}/3 ${questRun.definition.kind === "delivery" ? "deliveries made" : "supplies recovered"}`));
+    }
+    else if (result === "complete") {
+      const before = completionCount(), q = questRun.definition;
+      save.completedQuests ??= [];
+      const fresh = !save.completedQuests.includes(q.id);
+      if (fresh) save.completedQuests.push(q.id);
+      delete save.questProgress;
+      const unlocked = Math.min(6, 2 + Math.floor(completionCount() / 2)) > Math.min(6, 2 + Math.floor(before / 2));
+      toast(`${q.giver}: Thank you! · ${fresh ? `+${q.reward} XP` : "Quest replay completed"}${unlocked ? " · NEW JACKET COLOUR" : ""}`);
+    }
+    if (result !== "complete") save.questProgress = questRun.snapshot();
+    persist(); canvas.focus();
+  }
+  el("quest-accept").onclick = () => { const q = focusedQuest ?? nearestQuest ?? questRun?.definition; if (q) acceptQuest(q); };
+  el("quest-interact").onclick = interactQuest;
+  el("quest-abandon").onclick = () => { questRun = null; delete save.questProgress; persist(); toast("Quest left · you can accept it again from its giver"); canvas.focus(); };
+  el("quest-close").onclick = () => { dismissedQuest = (focusedQuest ?? questRun?.definition ?? nearestQuest)?.id ?? null; focusedQuest = null; if (questRun?.stage === "complete") questRun = null; canvas.focus(); };
+  function tickQuest() {
+    if (!questRun) return;
+    if (raceSession || active || spotRun?.status === "riding") { questRun.syncScore(skater.banked); return; }
+    const stage = questRun.stage;
+    questRun.tick(questPlayer(), STEP);
+    if (questRun.stage !== "complete") save.questProgress = questRun.snapshot();
+    if (stage !== questRun.stage) { persist(); toast(questRun.stage === "failed" ? "Delivery time expired · return to the giver to retry" : `Trick target reached · return to ${questRun.definition.giver}`); }
+  }
+  function updateQuestCard() {
+    const q = focusedQuest ?? questRun?.definition ?? nearestQuest;
+    const suspended = !!raceSession || !!active || spotRun?.status === "riding";
+    el("quest-card").classList.toggle("hidden", !q || suspended);
+    if (!q || suspended) return;
+    const run = !focusedQuest && questRun?.definition.id === q.id ? questRun : null;
+    el("quest-area").textContent = `${q.area.toUpperCase()} · ${run?.stage === "complete" ? "QUEST COMPLETE" : "LOCAL QUEST"}`;
+    el("quest-title").textContent = q.title;
+    el("quest-dialogue").textContent = run ? `${q.giver} · ${run.stage === "complete" ? "Thanks for helping the neighbourhood!" : run.stage === "failed" ? "Come back and we can try that delivery run again." : run.stage === "return" ? "Come back when you’re ready to hand everything in." : q.kind === "style" ? "Keep the tricks in this courtyard and bank your combo." : "Follow the markers. Stop before you interact."}` : q.request;
+    const target = run?.goal(skater.body.translation()), distance = target ? Math.round(Math.hypot(target.x - skater.body.translation().x, target.z - skater.body.translation().z)) : 0;
+    el("quest-objective").textContent = !run ? save.completedQuests?.includes(q.id) ? "Already completed · replay for practice" : `Reward: ${q.reward} XP · Accept at the quest giver` : run.stage === "complete" ? "Reward saved · explore another district" : run.stage === "failed" ? "Return to the quest giver to retry" : run.stage === "return" ? `Return to ${q.giver} · ${distance} m` : q.kind === "style" ? `${Math.min(300, Math.floor(run.stylePoints))}/300 banked points` : `${q.kind === "delivery" ? "Deliver" : q.kind === "collect" ? "Recover" : "Inspect"} · ${run.visited.length}/3 done · ${distance} m`;
+    el("quest-progress").textContent = run && q.limit !== null && run.stage !== "complete" ? `${Math.max(0, Math.ceil(q.limit - run.elapsed))}s remaining` : "";
+    el("quest-xp").textContent = `${questXP(save.completedQuests ?? [])} XP · ${save.completedQuests?.length ?? 0}/${quests.length} local quests complete`;
+    el("quest-accept").hidden = !!run; el("quest-interact").hidden = !run || run.stage === "complete";
+    el("quest-accept").textContent = focusedQuest && questRun && questRun.stage !== "complete" ? "Switch to this quest" : save.completedQuests?.includes(q.id) ? "Replay quest" : "Accept quest";
+    el("quest-interact").textContent = run?.stage === "return" ? "Hand in quest" : run?.stage === "failed" ? "Retry quest" : q.kind === "discover" ? "Inspect" : q.kind === "delivery" ? "Deliver" : q.kind === "collect" ? "Collect" : "Check progress";
+    el("quest-abandon").hidden = !run || run.stage === "complete"; el("quest-close").hidden = !!run && run.stage !== "complete";
   }
   function updateRaceCard() {
     const run = raceSession?.run, definition = run?.definition ?? nearestRace;
@@ -777,7 +865,7 @@ async function boot() {
   let wardrobeDetail = false;
   function refreshLobby() {
     el("lobby-progress").textContent =
-      `${save.collected.length} / 120 TOKENS  ·  ${Object.keys(save.records).length} / ${activities.length + courses.length + races.length} CHALLENGES`;
+      `${save.collected.length} / 120 TOKENS  ·  ${completionCount()} / ${activities.length + courses.length + races.length + quests.length} CHALLENGES`;
     el("pause-best").textContent = save.best.toLocaleString();
     el("lobby-location").textContent =
       selectedCity === "gdansk" ? "GDAŃSK / MOTŁAWA QUAY" : "RIYADH / AL MASMAK · DEERA";
@@ -823,7 +911,7 @@ async function boot() {
     actions.clear();
     el("pause").classList.remove("hidden");
     el("progress").textContent =
-      `${save.collected.length}/120 route tokens · ${Object.keys(save.records).length}/${activities.length + courses.length + races.length} challenges completed · Best combo ${save.best.toLocaleString()}`;
+      `${save.collected.length}/120 route tokens · ${completionCount()}/${activities.length + courses.length + races.length + quests.length} challenges completed · Best combo ${save.best.toLocaleString()}`;
     persist();
     refreshLobby();
     el("resume").focus();
@@ -879,6 +967,7 @@ async function boot() {
     ).focus();
   };
   function showMap() {
+    refreshQuestList();
     mapReturn = !el("menu").classList.contains("hidden")
       ? "menu"
       : !el("pause").classList.contains("hidden")
@@ -948,6 +1037,8 @@ async function boot() {
       .join("");
   el("challenge-list").insertAdjacentHTML("afterbegin", races.map(r => `<button data-race="${r.id}">Race: ${r.name}<small>${r.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${r.laps === 1 ? "Sprint" : `${r.laps} laps`} · 3 rivals</small></button>`).join(""));
   el("challenge-list").onclick = (e) => {
+    const questButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-quest]");
+    if (questButton) { visitQuest(quests.find(q => q.id === questButton.dataset.quest)!); return; }
     const parkButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-park]");
     if (parkButton) { visitPark(parkButton.dataset.park!); return; }
     const raceButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-race]");
@@ -985,7 +1076,16 @@ async function boot() {
     }
   };
   el("challenge-list").insertAdjacentHTML("afterbegin", spots.map(s => `<button data-park="${s.id}">Park: ${s.name}<small>${s.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${s.layout.toUpperCase()} · free skate</small></button>`).join(""));
-  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["park", "Skate parks"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
+  el("challenge-list").insertAdjacentHTML("afterbegin", quests.map(q => `<button data-quest="${q.id}"></button>`).join(""));
+  function refreshQuestList() {
+    el("challenge-list").querySelectorAll<HTMLButtonElement>("[data-quest]").forEach(button => {
+      const q = quests.find(q => q.id === button.dataset.quest)!;
+      button.textContent = `Quest: ${q.title} · ${q.giver}`;
+      const detail = document.createElement("small"); detail.textContent = `${q.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${q.area} · ${save.completedQuests?.includes(q.id) ? "COMPLETED" : `+${q.reward} XP`}`; button.append(detail);
+    });
+  }
+  refreshQuestList();
+  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["park", "Skate parks"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
   document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(button => button.onclick = () => {
     const filter = button.dataset.mapFilter!;
     document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
@@ -1009,7 +1109,7 @@ async function boot() {
     keys.clear();
     const available = Math.min(
       6,
-      2 + Math.floor(Object.keys(save.records).length / 2),
+      2 + Math.floor(completionCount() / 2),
     );
     const names = [
       "Sage",
@@ -1026,7 +1126,7 @@ async function boot() {
       )
       .join("");
     el("outfit-status").textContent =
-      `${available} / 6 colours unlocked. Complete two different events or spot challenges to unlock another.`;
+      `${available} / 6 colours unlocked. Complete two different events, sessions, races or quests to unlock another.`;
   }
   el("wardrobe").onclick = showWardrobe;
   el("lobby-rider").onclick = showWardrobe;
@@ -1121,6 +1221,7 @@ async function boot() {
       const data = JSON.parse(await f.text());
       if (!validSave(data)) throw Error();
       save = data;
+      questRun = save.questProgress ? new QuestRun(quests.find(q => q.id === save.questProgress!.id)!, skater.banked, save.questProgress) : null;
       persist();
       avatar.setOutfit(outfitColors[save.outfit]);
       tokenMeshes.forEach(
@@ -1228,9 +1329,10 @@ async function boot() {
       if (e.code === "KeyH") { pause(); showHelp(); }
       if (e.code === "KeyT") startSpot(spotRun?.course ?? selectedCourse());
       if (e.code === "KeyN") inviteLocal();
+      if (e.code === "KeyJ") { showMap(); document.querySelector<HTMLButtonElement>('[data-map-filter="quest"]')!.click(); }
     }
     if (e.code === "KeyR" && !e.repeat) recover();
-    if (e.code === "Enter" && !e.repeat && (nearest || nearestRace || raceSession)) startNearby();
+    if (e.code === "Enter" && !e.repeat && (nearest || nearestRace || raceSession || questRun || nearestQuest || focusedQuest)) startNearby();
     if (e.code === "F3") {
       e.preventDefault();
       el("debug").classList.toggle("hidden");
@@ -1250,6 +1352,7 @@ async function boot() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) pause();
   });
+  window.addEventListener("pagehide", persist);
   canvas.addEventListener("pointerdown", (e) => {
     if (!paused && lookPointer === null) {
       e.preventDefault();
@@ -1333,7 +1436,7 @@ async function boot() {
         else pause();
       }
       previousStart = btn(9);
-      if (btn(3) && !previousY && (nearest || nearestRace || raceSession) && !paused) startNearby();
+      if (btn(3) && !previousY && (nearest || nearestRace || raceSession || questRun || nearestQuest || focusedQuest) && !paused) startNearby();
       previousY = btn(3);
       if (btn(1) && !previousB && !paused) recover();
       previousB = btn(1);
@@ -1393,6 +1496,7 @@ async function boot() {
   function mapState(): MapState {
     const p = skater.body.translation();
     let goal = waypoint;
+    if (questRun) { const point = questRun.goal(p); if (point) goal = { ...point, label: questRun.stage === "return" ? `RETURN TO ${questRun.definition.giver.toUpperCase()}` : "QUEST OBJECTIVE" }; }
     if (active && active.activity.kind !== "jam") {
       const g = routeFor(active.activity)[active.gate];
       if (g) goal = { ...g, label: "NEXT CHECKPOINT" };
@@ -1410,6 +1514,7 @@ async function boot() {
       speed: skater.speed,
       collected: save.collected,
       records: save.records,
+      completedQuests: save.completedQuests ?? [],
       racers: raceSession?.rivals.map(r => ({ ...r.skater.body.translation() })) ?? [],
       rails: [...railGroups.values()].flat(),
       goal,
@@ -1532,6 +1637,7 @@ async function boot() {
         simTime += STEP;
         raceSession?.afterStep(); recordRace();
         tickSpot();
+        tickQuest();
         accumulator -= STEP;
         const p = skater.body.translation();
         if (waypoint && Math.hypot(p.x - waypoint.x, p.z - waypoint.z) < 5) {
@@ -1579,9 +1685,13 @@ async function boot() {
     const p = interpolatedPosition,
       speed = skater.speed;
     skyDome.position.copy(camera.position);
-    nearestRace = !active && spotRun?.status !== "riding" && !raceSession ? races.find(r => Math.hypot(p.x - r.start.x, p.z - r.start.z) < 11) : undefined;
+    if (dismissedQuest && Math.hypot(p.x - quests.find(q => q.id === dismissedQuest)!.anchor.x, p.z - quests.find(q => q.id === dismissedQuest)!.anchor.z) > 14) dismissedQuest = null;
+    if (focusedQuest && Math.hypot(p.x - focusedQuest.anchor.x, p.z - focusedQuest.anchor.z) > 14) focusedQuest = null;
+    nearestQuest = !active && !raceSession && spotRun?.status !== "riding" ? quests.find(q => q.id !== dismissedQuest && Math.hypot(p.x - q.anchor.x, p.z - q.anchor.z) < 11) : undefined;
+    nearestRace = !active && !questRun && !focusedQuest && spotRun?.status !== "riding" && !raceSession ? races.find(r => Math.hypot(p.x - r.start.x, p.z - r.start.z) < 11) : undefined;
     raceScene.update(raceSession?.run ?? null, p.x, p.z);
-    crowd.update(simTime, crowdPlayer(), raceSession?.visuals(simTime) ?? []);
+    const questActors = questScene.update(simTime, p.x, p.z, save.completedQuests ?? [], questRun, !raceSession && !active && spotRun?.status !== "riding");
+    crowd.update(simTime, crowdPlayer(), [...(raceSession?.visuals(simTime) ?? []), ...questActors]);
     const local = crowd.director.nearbyRider(crowdPlayer());
     localsButton.textContent = crowd.director.follower ? `Riding with ${crowd.director.follower.name} · End` : local ? `${mobileDevice ? "" : "N · "}Ride with ${local.name}` : "Meet a local rider";
     localsButton.disabled = !local && !crowd.director.follower;
@@ -1589,8 +1699,9 @@ async function boot() {
     spotScene.animate(simTime, p.x, p.z);
     updateSpotCard();
     updateRaceCard();
+    updateQuestCard();
     const rideButton = document.querySelector<HTMLButtonElement>('#touch-controls [data-command="event"]');
-    if (rideButton) rideButton.textContent = raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : "Ride";
+    if (rideButton) rideButton.textContent = raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : questRun ? "Interact" : nearestQuest || focusedQuest ? "Quest" : "Ride";
     rider.position.set(p.x, p.y - 0.83, p.z);
     rider.rotation.y =
       skater.heading +
@@ -1777,7 +1888,7 @@ async function boot() {
       el("hint").innerHTML =
         nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
           ? `<kbd>Enter / Y</kbd> ${nearest.district} · ${nearest.kind.toUpperCase()}`
-          : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>Z/C</kbd> 180 · <kbd>F/X/V/B</kbd> stunts · <kbd>E</kbd> rail assist · <kbd>H</kbd> controls · <kbd>M</kbd> map";
+          : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>Z/C</kbd> 180 · <kbd>F/X/V/B</kbd> stunts · <kbd>J</kbd> quests · <kbd>H</kbd> controls · <kbd>M</kbd> map";
       if (active) {
         el("event").classList.remove("hidden");
         el("event").innerHTML =
@@ -1832,6 +1943,11 @@ async function boot() {
           spotStamps: courses.filter(c => save.records[c.id] !== undefined).length,
           parks: spots.length,
           park: spots.find(s => Math.abs(p.x - s.x) < s.size[0] / 2 + 10 && Math.abs(p.z - s.z) < s.size[1] / 2 + 10)?.id ?? null,
+          quest: questRun ? { ...questRun.snapshot(), goal: questRun.goal(p), targets: questRun.targets() } : null,
+          nearbyQuest: (focusedQuest ?? nearestQuest)?.id ?? null,
+          completedQuests: [...(save.completedQuests ?? [])],
+          questXP: questXP(save.completedQuests ?? []),
+          questCount: quests.length,
           crowd: crowd.diagnostics,
           race: raceSession ? { id: raceSession.run.definition.id, status: raceSession.run.status, countdown: raceSession.run.countdown, elapsed: raceSession.run.elapsed, position: raceSession.run.position, gate: raceSession.run.player.gate, totalGates: raceSession.run.totalGates, finish: raceSession.run.player.finish, standings: raceSession.run.standings().map(r => ({ id: r.id, name: r.name, gate: r.gate, finish: r.finish, position: { ...r.position } })) } : null,
           nearbyRace: nearestRace?.id ?? null,
@@ -1847,6 +1963,7 @@ async function boot() {
             radius: navigation.radius,
             goal: mapState().goal,
             routePoints: navigation.route.length,
+            route: navigation.route.map(point => ({ ...point })),
           },
           chunks: chunks.size,
           jumps: skater.jumpCount,
