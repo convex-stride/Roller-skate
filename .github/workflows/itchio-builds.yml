@@ -62,3 +62,39 @@ jobs:
           name: layans-skate-windows
           path: src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
+
+  android-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Install dependencies
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm ci
+      - name: Set up Android NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018"
+          echo "NDK_HOME=${ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Generate Tauri icons
+        run: npx --yes @tauri-apps/cli@2 icon tools/tauri-icon.svg --output src-tauri/icons
+      - name: Initialize Android host
+        run: npx --yes @tauri-apps/cli@2 android init
+      - name: Build debug APK (not release signed)
+        run: npx --yes @tauri-apps/cli@2 android build --apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: layans-skate-android-debug
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
