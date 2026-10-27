@@ -1,4 +1,4 @@
-# Between Cities
+# Layan's Skate
 
 A playable Three.js inline-skating prototype connecting procedural Gdańsk and Riyadh.
 
@@ -21,7 +21,7 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Between-Cities-Races.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/between-cities-v0.12.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.13.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
 
@@ -59,6 +59,10 @@ This is a game-oriented physical model, not a biomechanics simulator. Lateral gr
 
 ## World and content
 
+Version 0.13 renames the game **Layan's Skate** and expands it to fourteen skate parks, seven in each city. Gdańsk adds Baltic Flow, Stocznia Street, Oliwa Vert, Brickline Courts, Island Transfer and Canal Pocket. Riyadh adds Wadi Flow, Najdi Lines, Palm Halfpipe, Dune Transfer, Olaya Plaza and Desert Wave. Dockyard Sessions and Sky Garden remain. Layouts include street banks/manual pads/stairs/rails, pump rollers, curved quarter pipes and transfer gaps. Curved surfaces and their side panels have Rapier triangle-mesh collision. New parks have timed trick sessions, for eighteen total park sessions and 58 challenges overall.
+
+Open **Map → Skate parks → Park:** to visit a park in free skate. The map shows each park's footprint and entrance. Riding into a park also suggests that park's session on the HUD. The map filters let you switch between parks, races, sessions, landmarks and events. Nearby parks render in detail while distant parks are hidden; their riding collision stays available. Existing progress and preferences keep their legacy browser storage keys so the rename preserves saves.
+
 Version 0.12 adds **Motława Dash** at the quay, **Olaya Boulevard Sprint**, **Dockyard Circuit** and **Sky Garden Circuit**. The circuits have two laps. Three AI rivals use the same 75 kg Rapier skater controller, 600 W push model, surface grip, drag and braking as the player; they steer through checkpoints and slow for corners. Rivals have anatomical crowd models, live positions on the minimap and a standings panel. Finish times use the fixed simulation step; close finishes interpolate crossing of the same finish plane across all lanes. Checkpoints must be passed in order; the finish line counts on wheels or during a normal jump. Races have a time limit and can be restarted or left at any time.
 
 Best race times, the latest finishing position and win counts persist in the regular save, alongside existing event records. Completing a different race contributes to jacket unlocks. The map flags and permanent checkered arches mark the race locations in free skating. These are single-player races against local AI. The original 36 events and six stunt sessions remain available, for 46 total challenges.
@@ -90,6 +94,8 @@ Outer districts still reuse modular layouts, and the visual style remains styliz
 Version 0.5 adds architectural interpretations of Żuraw, Main Town Hall, Green Gate, Kingdom Centre, Al Faisaliyah, and Masmak. Gdańsk's arrival district has narrower, taller merchant-house fronts. Riyadh has modern glass buildings, an Olaya-style asphalt boulevard, lane markings, parked sedans, and palm-lined pavements. Open the world map and use an **Explore:** destination to visit a landmark. Building generation reserves their footprints and navigation marks them. See [CITY_ACCURACY.md](CITY_ACCURACY.md) for the important geographic limits: these are compressed architectural recreations, not street-accurate replicas or scanned models.
 
 ## Validation
+
+`npm run test:parks` checks the new name, all fourteen free-skate destinations, destination filters, riding the Baltic pump track, starting a local session and phone park travel. Physics tests ride both directions of the curved quarter pipes and traverse the pump rollers using the actual collision mesh. Tests also check park spacing, city coverage, reserved footprints and session starts.
 
 `npm run test:races` checks the countdown lock, pause behavior, moving physical rivals, both completed sprints, standings, results after a save reload, circuit restart/leave, and phone race entry. Unit tests check all four route footprints, checkpoint order, lap counting, jumping through the finish, timeouts, and all three physical AI rivals completing each route. Browser screenshots are saved in `releases/`.
 

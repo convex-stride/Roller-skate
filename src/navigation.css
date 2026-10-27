@@ -103,6 +103,10 @@
 .map-label {
   max-width: 760px;
 }
+.map-filters { display: flex; gap: 6px; margin: 10px 0; overflow-x: auto; }
+.map-filters button { flex-shrink: 0; padding: 9px 12px; font-size: 11px; min-height: 42px; }
+.map-filters button[aria-pressed="true"] { color: #173438; background: #dfedb3; }
+.challenge-list button[hidden] { display: none !important; }
 body.high-contrast .map-wrap {
   background: #071416;
   border-color: #fff;

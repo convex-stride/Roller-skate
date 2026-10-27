@@ -1,5 +1,6 @@
 import { landmarkAt, inHeritageSquare, heritageShops } from "./city-profile";
 import { insideSpot, spots } from "./spots";
+import { parkObstacleAt } from "./park-layouts";
 export const CITY_SIZE = 1600;
 export const CHUNK = 200;
 export type City = "gdansk" | "riyadh";
@@ -175,8 +176,7 @@ export function clearGround(x: number, z: number, margin = 2) {
   if (inCanal(x, z)) return false;
   if (landmarkAt(x, z, margin)) return false;
   for (const s of spots) {
-    if (Math.abs(x - s.x) < 5 + margin && z > s.z - 50 - margin && z < s.z + 66 + margin) return false;
-    if (Math.abs(Math.abs(x - s.x) - 55) < 4 + margin && Math.abs(z - s.z) < 96 + margin) return false;
+    if (parkObstacleAt(s, x, z, margin)) return false;
   }
   if (heritageShops.some(b => Math.abs(x - b.x) < b.w / 2 + margin + 4 && Math.abs(z - b.z) < b.d / 2 + margin)) return false;
   return [-1, 0, 1]

@@ -3,8 +3,8 @@ import { courses, SpotRun, spots, insideSpot } from "../src/spots";
 import { buildings, inWorld, clearGround } from "../src/world";
 const sample = { x: 0, y: 0.83, z: 0, grounded: true, jumps: 0, score: 0 };
 describe("authored stunt sessions", () => {
-  it("reserves complete spot footprints and keeps all six start points open", () => {
-    expect(courses).toHaveLength(6);
+  it("reserves fourteen park footprints and keeps all eighteen session starts open", () => {
+    expect(spots).toHaveLength(14); expect(courses).toHaveLength(18);
     for (const c of courses) { expect(inWorld(c.start.x, c.start.z)).toBe(true); expect(clearGround(c.start.x, c.start.z, 1)).toBe(true); }
     for (const s of spots) for (let x = -700; x <= 700; x += 200) for (let z = -700; z <= 700; z += 200) {
       for (const b of buildings((s.city === "gdansk" ? -1000 : 1000) + x, z, s.city)) expect(insideSpot(b.x, b.z, Math.max(b.w, b.d) / 2 + 7)).toBe(false);

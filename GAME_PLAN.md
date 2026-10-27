@@ -1,10 +1,10 @@
-# Roller-skate — complete game and production plan
+# Layan's Skate — complete game and production plan
 
 Status: production design with an initial playable procedural prototype implemented. See README.md for the implemented features, validation, and remaining limitations. The release checklist below describes the intended finished game, not the current prototype.
 
 ## 1. The game we are making
 
-**Working title:** Roller-skate. Choose the public title and check name availability before making final branding.
+**Public title:** Layan's Skate, chosen by the user. The repository name remains Roller-skate.
 
 **Pitch:** A third-person inline skating game where you find your own lines through a colorful Gdańsk waterfront and a warm Riyadh cityscape. Build speed, carve corners, jump gaps, grind rails, and link tricks across two large, connected cities.
 

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { centers, hash, streets, type Building, type City } from "./world";
 import { inHeritageSquare, heritageShops } from "./city-profile";
-import { insideSpot } from "./spots";
+import { insideSpot, outsideParkFootprints } from "./spots";
 
 export type StreetKit = {
   box: (
@@ -470,9 +470,11 @@ export function streetDetails(
   const arrival = Math.abs(cx - centers[city]) < 101 && Math.abs(cz) < 101;
   const waterfront = historic && Math.abs(cx + 1000) < 201 && cz === 100;
   if (!waterfront) {
-    const base = box(g, cx, 0.012, cz, 200, 0.02, 200, historic ? 0xaaa896 : 0xcbb695);
-    base.material = surface(historic ? "paving" : "plaster", historic ? 0x939e9b : 0xcab182);
-    for (const road of streets(cx, cz, city)) {
+    for (const patch of outsideParkFootprints({ x: cx, z: cz, w: 200, d: 200 })) {
+      const base = box(g, patch.x, 0.012, patch.z, patch.w, 0.02, patch.d, historic ? 0xaaa896 : 0xcbb695);
+      base.material = surface(historic ? "paving" : "plaster", historic ? 0x939e9b : 0xcab182);
+    }
+    for (const road of streets(cx, cz, city).flatMap(outsideParkFootprints)) {
       const lane = box(g, road.x, 0.034, road.z, road.w, 0.018, road.d, 0x606763);
       lane.material = surface(historic ? "paving" : "asphalt", historic ? 0x949d91 : 0x50595c);
       // Lane paint belongs only to the broad, north-south Riyadh arteries.

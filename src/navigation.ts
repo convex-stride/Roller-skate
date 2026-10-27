@@ -10,7 +10,7 @@ import {
   type Activity,
 } from "./world";
 import { landmarks } from "./city-profile";
-import { spots } from "./spots";
+import { spots, courses } from "./spots";
 import { races } from "./races";
 export type Point = { x: number; z: number };
 export type Goal = Point & { label: string };
@@ -214,9 +214,10 @@ export class NavigationMap {
     }
     rect(0, 0, 400, 300, "#6c7863");
     for (const spot of spots) {
-      rect(spot.x, spot.z, 128, 202, spot.city === "gdansk" ? "#42616b" : "#7e7860");
-      rect(spot.x, spot.z, 10, 132, "#b2c4b1");
-      const [x, y] = project(spot.x, spot.z - 78);
+      rect(spot.x, spot.z, spot.size[0], spot.size[1], spot.city === "gdansk" ? "#42616b" : "#7e7860");
+      rect(spot.x, spot.z, spot.layout === "street" ? 34 : 12, spot.size[1] * 0.65, "#b2c4b1");
+      const entrance = courses.find(c => c.spot.id === spot.id)!.start;
+      const [x, y] = project(entrance.x, entrance.z);
       ctx.fillStyle = spot.city === "gdansk" ? "#ffaa76" : "#93e6d1";
       ctx.beginPath(); ctx.arc(x, y, large ? 5 : 7, 0, Math.PI * 2); ctx.fill();
       if (large) { ctx.font = "bold 9px Arial"; ctx.fillText(spot.name, x + 8, y + 3); }

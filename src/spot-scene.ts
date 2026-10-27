@@ -2,16 +2,21 @@ import * as THREE from "three";
 import { RAPIER } from "./physics";
 import { spots } from "./spots";
 import { sign, surface, type StreetKit } from "./environment";
+import { neighborhoodPark } from "./neighborhood-park";
 
 /** Authored stunt geometry stays loaded so elevated landings always have collision. */
 export function buildSpots(scene: THREE.Scene, world: RAPIER.World, k: StreetKit) {
-  const group = new THREE.Group(); scene.add(group);
+  const root = new THREE.Group(); scene.add(root);
+  const parks: { group: THREE.Group; x: number; z: number }[] = [];
   const movers: { mesh: THREE.Group; body: RAPIER.RigidBody; x: number; z: number }[] = [];
   const flags: THREE.Mesh[] = [];
   for (const s of spots) {
-    const { x, z, height: h } = s, dock = s.id === "dock", color = s.color;
+    const group = new THREE.Group(); root.add(group); parks.push({ group, x: s.x, z: s.z });
+    if (s.layout !== "gap") { root.add(neighborhoodPark(s, group, world, k)); continue; }
+    const { x, z, height: h } = s, dock = s.city === "gdansk", color = s.color;
     const floor = k.box(group, x, 0.025, z, 128, 0.05, 202, dock ? 0x394e58 : 0xc6b294, true);
     floor.material = surface(dock ? "asphalt" : "paving", dock ? 0x42575f : 0xcbb897);
+    root.add(floor);
     // Painted lanes make the choices visible from the entrance, not only on a map.
     for (const lane of [0, -27, 28]) {
       for (const side of [-1, 1]) for (let dz = -80; dz < 84; dz += 8)
@@ -104,10 +109,12 @@ export function buildSpots(scene: THREE.Scene, world: RAPIER.World, k: StreetKit
     movers.push({ mesh: cart, body, x: x + 28, z: z + 31 });
   }
   return {
-    group,
+    group: root,
+    groups: parks.map(p => p.group),
     tick(time: number) { for (const m of movers) m.body.setNextKinematicTranslation({ x: m.x + Math.sin(time * 0.45) * 8, y: 0, z: m.z }); },
-    animate(time: number) {
-      for (const m of movers) m.mesh.position.copy(m.body.translation());
+    animate(time: number, playerX: number, playerZ: number) {
+      for (const p of parks) p.group.visible = Math.hypot(p.x - playerX, p.z - playerZ) < 320;
+      for (const m of movers) { m.mesh.position.copy(m.body.translation()); m.mesh.visible = Math.hypot(m.x - playerX, m.z - playerZ) < 320; }
       flags.forEach((f, i) => { f.rotation.x = Math.sin(time * 2 + i * 0.5) * 0.15; });
     },
   };

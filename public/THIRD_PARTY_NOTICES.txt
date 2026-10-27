@@ -49,7 +49,7 @@ For these and/or other purposes and motivations, and without any expectation of 
     d. Affirmer understands and acknowledges that Creative Commons is not a party to this document and has no duty or obligation with respect to this CC0 or use of the Work.
 
 
-BETWEEN CITIES — THIRD-PARTY NOTICES
+LAYAN'S SKATE — THIRD-PARTY NOTICES
 
 Three.js — https://threejs.org/
 The MIT License

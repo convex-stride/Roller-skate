@@ -72,10 +72,11 @@ export class CrowdDirector {
       add("skater", [[1000 + side * 5, -70], [1000 + side * 5, 74]], 5);
     }
     for (const spot of spots) {
-      add("skater", [[spot.x - 16, spot.z - 72], [spot.x - 16, spot.z + 73], [spot.x + 15, spot.z + 73], [spot.x + 15, spot.z - 72]], 10);
+      const end = spot.size[1] / 2 - (spot.layout === "pump" ? 12 : 28), sideX = spot.size[0] / 2 - 20;
+      add("skater", [[spot.x - 16, spot.z - end], [spot.x - 16, spot.z + end], [spot.x + 15, spot.z + end], [spot.x + 15, spot.z - end]], 10);
       for (const side of [-1, 1]) {
         add("spectator", [[spot.x + side * 12, spot.z - 18], [spot.x + side * 13, spot.z - 15]], 5);
-        add("social", [[spot.x + side * 44, spot.z - 70], [spot.x + side * 44, spot.z - 66]], 3);
+        add("social", [[spot.x + side * sideX, spot.z - end], [spot.x + side * sideX, spot.z - end + 4]], 3);
       }
     }
     this.ambientStart = this.people.length;

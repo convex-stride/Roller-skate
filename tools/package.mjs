@@ -57,12 +57,13 @@ await writeFile(resolve(root, "releases/Between-Cities-Contrasts.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Play.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Alive.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Races.html"), html);
+await writeFile(resolve(root, "releases/Layans-Skate.html"), html);
 execFileSync(
   "zip",
-  ["-q", "-FS", "-r", resolve(root, "releases/between-cities-v0.12.zip"), "."],
+  ["-q", "-FS", "-r", resolve(root, "releases/layans-skate-v0.13.zip"), "."],
   { cwd: dist },
 );
 console.log(
-  "Packaged releases/Between-Cities.html (self-contained browser build)",
+  "Packaged releases/Layans-Skate.html (self-contained browser build)",
 );
-console.log("Packaged releases/between-cities-v0.12.zip (itch.io build)");
+console.log("Packaged releases/layans-skate-v0.13.zip (itch.io build)");

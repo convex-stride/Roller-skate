@@ -6,7 +6,7 @@ import { createTouchControls } from "./touch";
 import { createRider } from "./rider";
 import { NavigationMap, type Goal, type MapState } from "./navigation";
 import { buildCityLandmarks, modernArchitecture } from "./landmarks";
-import { courses, SpotRun, type Course } from "./spots";
+import { courses, spots, SpotRun, type Course } from "./spots";
 import { buildSpots } from "./spot-scene";
 import { createCrowd } from "./crowd-scene";
 import { races, placeLabel, type RaceDefinition } from "./races";
@@ -41,14 +41,14 @@ import "./races.css";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const uiArrow =
   '<svg class="ui-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13L13 3M3 3h10v10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
-app.innerHTML = `<canvas id="scene" aria-label="Between Cities skating world"></canvas>
-<div id="hud" class="hidden"><div class="topbar"><div class="brand">BETWEEN CITIES<small>INLINE / OPEN WORLD</small></div><div class="city"><strong id="city-name">Gdańsk</strong><span id="district-name">Baltic Lines</span></div></div>
+app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></canvas>
+<div id="hud" class="hidden"><div class="topbar"><div class="brand">LAYAN'S SKATE<small>INLINE / OPEN WORLD</small></div><div class="city"><strong id="city-name">Gdańsk</strong><span id="district-name">Baltic Lines</span></div></div>
 <div class="telemetry"><div class="speed"><span id="speed">0</span><small>KM/H</small></div><div class="bar"><i id="charge"></i></div><div class="stance" id="stance">COAST</div></div>
 <div class="combo"><b id="score"></b><span id="multiplier"></span><p id="trick"></p></div>
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.12 / STREET RACES").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.13 / PARKS EVERYWHERE").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
@@ -507,6 +507,7 @@ async function boot() {
   batchInstances(landmarks);
   const spotScene = buildSpots(scene, world, { box, cylinder, tree, rail, material });
   const raceScene = buildRaceScene(scene);
+  spotScene.groups.forEach(batchInstances);
   batchInstances(spotScene.group);
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const localsButton = document.createElement("button");
@@ -570,6 +571,7 @@ async function boot() {
   let spotRun: SpotRun | null = null;
   let spotChoice = 0;
   let spotCity: City = "gdansk";
+  let suggestedPark: string | null = null;
   const spotGates = Array.from({ length: 5 }, () => {
     const m = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.12, 6, 32), new THREE.MeshBasicMaterial({ color: 0xffc580, transparent: true, opacity: 0.3 }));
     scene.add(m); m.visible = false; return m;
@@ -595,7 +597,7 @@ async function boot() {
     toast(`${course.name} · ${course.description}`);
   }
   el("spot-play").onclick = () => startSpot(spotRun?.course ?? selectedCourse());
-  el("spot-next").onclick = () => { stopSpot(); spotChoice = (spotChoice + 1) % 3; };
+  el("spot-next").onclick = () => { stopSpot(); spotChoice = (spotChoice + 1) % courses.filter(c => c.spot.city === spotCity).length; };
   el("spot-leave").onclick = () => { stopSpot(); toast("Free skate · the whole spot is yours"); canvas.focus(); };
   function tickSpot() {
     if (!spotRun || !spotRun.isRunning()) return;
@@ -620,6 +622,12 @@ async function boot() {
   function updateSpotCard() {
     const city = cityAt(skater.body.translation().x);
     if (!spotRun && city !== spotCity) { spotCity = city; spotChoice = 0; }
+    const p = skater.body.translation();
+    const nearbyPark = spots.find(s => Math.abs(p.x - s.x) < s.size[0] / 2 + 10 && Math.abs(p.z - s.z) < s.size[1] / 2 + 10);
+    if (!nearbyPark) suggestedPark = null;
+    if (!spotRun && nearbyPark && suggestedPark !== nearbyPark.id) {
+      spotCity = nearbyPark.city; spotChoice = courses.filter(c => c.spot.city === spotCity).findIndex(c => c.spot.id === nearbyPark.id); suggestedPark = nearbyPark.id;
+    }
     const c = spotRun?.course ?? selectedCourse(), running = spotRun?.status === "riding";
     el("spot-card").classList.toggle("hidden", !!active || !!raceSession || !!nearestRace);
     el("spot-kicker").textContent = spotRun?.status === "finished" ? `${spotRun.medal} MEDAL · STAMP EARNED` : spotRun?.status === "failed" ? "ONE MORE TRY?" : c.spot.name;
@@ -628,7 +636,7 @@ async function boot() {
       ? `${Math.ceil(c.limit - spotRun!.elapsed)}s · ${c.kind === "jam" ? `${skater.banked - spotRun!.initialScore} / 300 banked points` : `${spotRun!.gate + 1}/${c.gates.length} · ${c.gates[spotRun!.gate].label}`}`
       : c.description;
     const count = Object.keys(save.records).length, stamps = courses.filter(c => save.records[c.id] !== undefined).length;
-    el("spot-reward").textContent = `${stamps}/6 spot stamps · ${count >= 8 ? "All jacket colours unlocked" : `${2 - count % 2} more completion${count % 2 ? "" : "s"} unlock a jacket`}`;
+    el("spot-reward").textContent = `${stamps}/${courses.length} spot stamps · ${count >= 8 ? "All jacket colours unlocked" : `${2 - count % 2} more completion${count % 2 ? "" : "s"} unlock a jacket`}`;
     el("spot-fill").style.width = `${spotRun?.status === "finished" ? 100 : running ? c.kind === "jam" ? Math.min(100, (skater.banked - spotRun!.initialScore) / 3) : spotRun!.gate / c.gates.length * 100 : 0}%`;
     el("spot-play").textContent = `${mobileDevice ? "" : "T · "}${running ? "Restart" : spotRun ? "Ride again" : "Start this run"}`;
     el("spot-leave").hidden = !spotRun;
@@ -706,6 +714,16 @@ async function boot() {
     stream(true); closeMenus(); snapCamera();
     toast(`${definition.name} · 3 rivals · ${definition.laps === 1 ? "sprint" : `${definition.laps} laps`} · wait for GO`);
   }
+  function visitPark(id: string) {
+    const park = spots.find(s => s.id === id)!;
+    const course = courses.find(c => c.spot.id === id)!;
+    stopRace(); stopSpot(); active = null; gate.visible = false; waypoint = null;
+    el("event").classList.add("hidden");
+    spotCity = park.city; spotChoice = courses.filter(c => c.spot.city === spotCity).findIndex(c => c.id === course.id); suggestedPark = park.id;
+    skater.reset(course.start.x, course.start.z); skater.heading = 0; safe = { ...course.start }; lookYaw = 0;
+    stream(true); closeMenus(); snapCamera();
+    toast(`${park.name} · ${park.layout.toUpperCase()} PARK · free skate or start a session`);
+  }
   el("race-join").onclick = () => { if (nearestRace) startRace(nearestRace); };
   el("race-restart").onclick = () => { if (raceSession) startRace(raceSession.run.definition); };
   el("race-leave").onclick = () => { stopRace(); canvas.focus(); toast("Free skate · race left"); };
@@ -759,7 +777,7 @@ async function boot() {
   let wardrobeDetail = false;
   function refreshLobby() {
     el("lobby-progress").textContent =
-      `${save.collected.length} / 120 TOKENS  ·  ${Object.keys(save.records).length} / 46 CHALLENGES`;
+      `${save.collected.length} / 120 TOKENS  ·  ${Object.keys(save.records).length} / ${activities.length + courses.length + races.length} CHALLENGES`;
     el("pause-best").textContent = save.best.toLocaleString();
     el("lobby-location").textContent =
       selectedCity === "gdansk" ? "GDAŃSK / MOTŁAWA QUAY" : "RIYADH / AL MASMAK · DEERA";
@@ -805,7 +823,7 @@ async function boot() {
     actions.clear();
     el("pause").classList.remove("hidden");
     el("progress").textContent =
-      `${save.collected.length}/120 route tokens · ${Object.keys(save.records).length}/46 challenges completed · Best combo ${save.best.toLocaleString()}`;
+      `${save.collected.length}/120 route tokens · ${Object.keys(save.records).length}/${activities.length + courses.length + races.length} challenges completed · Best combo ${save.best.toLocaleString()}`;
     persist();
     refreshLobby();
     el("resume").focus();
@@ -930,6 +948,8 @@ async function boot() {
       .join("");
   el("challenge-list").insertAdjacentHTML("afterbegin", races.map(r => `<button data-race="${r.id}">Race: ${r.name}<small>${r.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${r.laps === 1 ? "Sprint" : `${r.laps} laps`} · 3 rivals</small></button>`).join(""));
   el("challenge-list").onclick = (e) => {
+    const parkButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-park]");
+    if (parkButton) { visitPark(parkButton.dataset.park!); return; }
     const raceButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-race]");
     if (raceButton) { startRace(races.find(r => r.id === raceButton.dataset.race)!); return; }
     const courseButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-course]");
@@ -964,6 +984,13 @@ async function boot() {
       startEvent(a);
     }
   };
+  el("challenge-list").insertAdjacentHTML("afterbegin", spots.map(s => `<button data-park="${s.id}">Park: ${s.name}<small>${s.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${s.layout.toUpperCase()} · free skate</small></button>`).join(""));
+  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["park", "Skate parks"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
+  document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(button => button.onclick = () => {
+    const filter = button.dataset.mapFilter!;
+    document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
+    el("challenge-list").querySelectorAll<HTMLButtonElement>("button").forEach(b => { b.hidden = filter !== "all" && b.dataset[filter] === undefined; });
+  });
   function streamDestination(x: number, z: number) {
     skater.reset(x, z);
     stream(true);
@@ -1081,7 +1108,7 @@ async function boot() {
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = "between-cities-save.json";
+    a.download = "layans-skate-save.json";
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -1559,7 +1586,7 @@ async function boot() {
     localsButton.textContent = crowd.director.follower ? `Riding with ${crowd.director.follower.name} · End` : local ? `${mobileDevice ? "" : "N · "}Ride with ${local.name}` : "Meet a local rider";
     localsButton.disabled = !local && !crowd.director.follower;
     localsButton.hidden = mobileDevice && spotRun?.status === "riding";
-    spotScene.animate(simTime);
+    spotScene.animate(simTime, p.x, p.z);
     updateSpotCard();
     updateRaceCard();
     const rideButton = document.querySelector<HTMLButtonElement>('#touch-controls [data-command="event"]');
@@ -1803,6 +1830,8 @@ async function boot() {
           grindingDistance: skater.grindingDistance,
           spot: spotRun ? { id: spotRun.course.id, gate: spotRun.gate, elapsed: spotRun.elapsed, status: spotRun.status, medal: spotRun.medal } : null,
           spotStamps: courses.filter(c => save.records[c.id] !== undefined).length,
+          parks: spots.length,
+          park: spots.find(s => Math.abs(p.x - s.x) < s.size[0] / 2 + 10 && Math.abs(p.z - s.z) < s.size[1] / 2 + 10)?.id ?? null,
           crowd: crowd.diagnostics,
           race: raceSession ? { id: raceSession.run.definition.id, status: raceSession.run.status, countdown: raceSession.run.countdown, elapsed: raceSession.run.elapsed, position: raceSession.run.position, gate: raceSession.run.player.gate, totalGates: raceSession.run.totalGates, finish: raceSession.run.player.finish, standings: raceSession.run.standings().map(r => ({ id: r.id, name: r.name, gate: r.gate, finish: r.finish, position: { ...r.position } })) } : null,
           nearbyRace: nearestRace?.id ?? null,
