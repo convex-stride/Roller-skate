@@ -1,0 +1,25 @@
+#race-card { position: absolute; left: 32px; top: 108px; width: 280px; padding: 18px; background: #142e35f2; border: 1px solid #9fc3c466; border-top: 4px solid #f0c17c; pointer-events: auto; border-radius: 6px; }
+#race-card small { color: #f0c17c; font-size: 9px; letter-spacing: .12em; }
+#race-title { display: block; margin: 8px 0; font-size: 23px; line-height: 1.1; }
+#race-stats { font-size: 12px; line-height: 1.5; color: #d8e2d8; }
+#race-stats b { display: block; font-size: 30px; color: #e7f9ad; }
+#race-stats span { display: block; font-variant-numeric: tabular-nums; }
+#race-standings { padding: 0; margin: 12px 0; list-style: none; font-size: 12px; }
+#race-standings li { padding: 5px 8px; border-bottom: 1px solid #ffffff12; }
+#race-standings .race-you { background: #e7f9ad22; color: #e7f9ad; }
+#race-best { font-size: 11px; margin: 9px 0; color: #b8c9c4; }
+.race-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.race-actions button { font-size: 11px; padding: 9px 11px; }
+#race-join, #race-restart { background: #e7f9ad; color: #183236; font-weight: 700; }
+#race-countdown { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); font-size: clamp(70px, 10vw, 130px); font-weight: 900; color: #e9ffc0; text-shadow: 0 4px 25px #102d35; pointer-events: none; }
+body.touch-play #race-card { top: max(65px, calc(env(safe-area-inset-top) + 50px)); left: 12px; width: min(220px, calc(100vw - 148px)); padding: 10px; }
+body.touch-play #race-title { font-size: 17px; margin: 5px 0; }
+body.touch-play #race-stats { font-size: 10px; }
+body.touch-play #race-stats b { font-size: 23px; }
+body.touch-play #race-standings { font-size: 10px; margin: 5px 0; }
+body.touch-play #race-standings li { padding: 3px 5px; }
+body.touch-play #race-best { font-size: 9px; margin: 5px 0; }
+body.touch-play .race-actions button { min-height: 44px; padding: 7px; font-size: 10px; }
+body.touch-play #race-countdown { left: auto; right: 16px; top: 200px; transform: none; font-size: 60px; line-height: 1; }
+@media (orientation: landscape) { body.touch-play #race-countdown { left: 50%; right: auto; top: 30%; transform: translate(-50%, -50%); font-size: 76px; } }
+@media (orientation: landscape) and (max-height: 550px) { body.touch-play #race-card { width: 225px; } body.touch-play #race-standings { display: none; } body.touch-play #race-best { display: none; } }

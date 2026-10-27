@@ -11,6 +11,7 @@ import {
 } from "./world";
 import { landmarks } from "./city-profile";
 import { spots } from "./spots";
+import { races } from "./races";
 export type Point = { x: number; z: number };
 export type Goal = Point & { label: string };
 const cell = 10;
@@ -111,6 +112,7 @@ export type MapState = {
   records: Record<string, number>;
   rails: { x: number; z: number; length: number; axis: "x" | "z" }[];
   goal: Goal | null;
+  racers?: Point[];
 };
 export class NavigationMap {
   radius = 110;
@@ -263,6 +265,15 @@ export class NavigationMap {
       const [x, y] = project(t.x, t.z);
       ctx.fillStyle = "#e7edbb";
       ctx.fillRect(x - 2, y - 2, 4, 4);
+    }
+    for (const race of races) {
+      const [x, y] = project(race.start.x, race.start.z);
+      if (!large && Math.hypot(race.start.x - s.position.x, race.start.z - s.position.z) > this.radius) continue;
+      ctx.fillStyle = "#ffce89"; ctx.fillRect(x - 5, y - 5, 10, 10); ctx.fillStyle = "#24353c"; ctx.fillRect(x - 5, y - 5, 5, 5); ctx.fillRect(x, y, 5, 5);
+      if (large) { ctx.font = "bold 9px Arial"; ctx.fillStyle = "#ffdc9a"; ctx.fillText(race.name, x + 8, y - 7); }
+    }
+    for (const rival of s.racers ?? []) {
+      const [x, y] = project(rival.x, rival.z); ctx.fillStyle = "#faab79"; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
     }
     for (const a of activities) {
       const [x, y] = project(a.x, a.z);

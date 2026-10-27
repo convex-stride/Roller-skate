@@ -9,6 +9,7 @@ export type CrowdPerson = CrowdPoint & {
   heading: number; speed: number; phase: number; age: number; wait: number;
   reaction: number; action: CrowdAction; distance: number; ground: number;
   following: boolean; stuck: number; traveled: number;
+  crouching?: boolean;
 };
 export type CrowdPlayer = CrowdPoint & { heading: number; speed: number; score: number };
 type Probe = (x: number, z: number, fromX: number, fromZ: number) => number | null;

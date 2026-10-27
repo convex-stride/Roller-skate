@@ -111,7 +111,8 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     rig.poses.forEach(({ b, q, p }) => { b.quaternion.copy(q); b.position.copy(p); });
     const height = 0.94 + (p.id % 5) * 0.025, stride = Math.sin(p.phase), moving = Math.min(1, p.speed / (skating ? 2 : 0.8));
     rig.group.position.set(p.x, p.ground, p.z); rig.group.rotation.y = p.heading; rig.group.scale.set(1, height, 1);
-    rig.body.position.y = skating ? 0.07 : Math.abs(stride) * 0.025 * moving + 0.025;
+    rig.body.position.y = skating ? p.crouching ? -0.03 : 0.07 : Math.abs(stride) * 0.025 * moving + 0.025;
+    rig.body.rotation.x = p.crouching ? 0.15 : 0;
     rig.group.updateMatrixWorld(true);
     const forward = new THREE.Vector3(Math.sin(p.heading), 0, Math.cos(p.heading));
     rig.legs.forEach((leg, i) => {
@@ -141,13 +142,13 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   }
   return {
     director,
-    update(time: number, player: CrowdPlayer) {
+    update(time: number, player: CrowdPlayer, racers: CrowdPerson[] = []) {
       const dt = Math.max(0, Math.min(0.15, time - previousTime)); previousTime = time; simulationAccumulator += dt;
       if (!visible.length || simulationAccumulator >= 0.1) {
         for (const p of visible) before.set(p.id, { x: p.x, z: p.z, phase: p.phase, heading: p.heading });
         visible = director.update(player, simulationAccumulator, probe); simulationAccumulator = 0;
       }
-      const blended = visible.map(p => {
+      const blended = [...racers, ...visible].slice(0, capacity).map(p => {
         const old = before.get(p.id), blend = Math.min(1, simulationAccumulator / 0.1);
         if (!old || Math.hypot(old.x - p.x, old.z - p.z) > 3) return p;
         const turn = Math.atan2(Math.sin(p.heading - old.heading), Math.cos(p.heading - old.heading));
@@ -174,8 +175,8 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
           place(shoes, i * 2 + sideIndex, foot, [0.12, 0.12, 0.28], p.heading);
         }
       });
-      for (const m of [torso, heads, caps, shadows]) m.count = visible.length;
-      limbs.count = visible.length * 8; shoes.count = visible.length * 2;
+      for (const m of [torso, heads, caps, shadows]) m.count = blended.length;
+      limbs.count = blended.length * 8; shoes.count = blended.length * 2;
       for (const m of [torso, heads, caps, limbs, shoes, shadows]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     },
     get diagnostics() { return { visible: visible.length, detailed: rigs.filter(r => r.group.visible).length, residents: director.people.length, reactions: director.reactions, yields: director.yields, following: director.follower?.name ?? null,

@@ -1,6 +1,6 @@
 {
   "name": "between-cities-skate",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "test:spots": "node tools/spots-smoke.mjs",
     "test:touch": "node tools/touch-smoke.mjs",
     "test:crowd": "node tools/crowd-smoke.mjs",
+    "test:races": "node tools/races-smoke.mjs",
     "build:rider": "node tools/build-rider.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run"

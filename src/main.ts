@@ -9,6 +9,9 @@ import { buildCityLandmarks, modernArchitecture } from "./landmarks";
 import { courses, SpotRun, type Course } from "./spots";
 import { buildSpots } from "./spot-scene";
 import { createCrowd } from "./crowd-scene";
+import { races, placeLabel, type RaceDefinition } from "./races";
+import { RaceSession } from "./race-session";
+import { buildRaceScene } from "./race-scene";
 import { landmarks as cityLandmarks, cityStarts, practiceRails } from "./city-profile";
 import { menus } from "./menus";
 import { loadPreferences, bindPreferences, type Preferences } from "./settings";
@@ -33,6 +36,7 @@ import "./style.css";
 import "./menus.css";
 import "./navigation.css";
 import "./touch.css";
+import "./races.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const uiArrow =
@@ -44,12 +48,13 @@ app.innerHTML = `<canvas id="scene" aria-label="Between Cities skating world"></
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.11 / CITY LIFE").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
-<div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter</b>Start a nearby event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.12 / STREET RACES").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+<div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
 const el = (id: string) => document.getElementById(id)!;
 el("hud").insertAdjacentHTML("beforeend", `<aside id="spot-card" aria-label="Play a stunt spot"><small id="spot-kicker">NEW PLACES TO RIDE</small><strong id="spot-title"></strong><p id="spot-detail"></p><div class="spot-meter"><i id="spot-fill"></i></div><span id="spot-reward"></span><div class="spot-actions"><button id="spot-play">T · Ride the jump line</button><button id="spot-next">Try another</button><button id="spot-leave" hidden>End run</button></div></aside>`);
+el("hud").insertAdjacentHTML("beforeend", `<aside id="race-card" class="hidden" aria-label="Street race"><small id="race-area"></small><strong id="race-title"></strong><div id="race-stats"></div><ol id="race-standings"></ol><p id="race-best"></p><div class="race-actions"><button id="race-join">Join race</button><button id="race-restart">Restart race</button><button id="race-leave">Leave race</button></div></aside><div id="race-countdown" class="hidden" role="status" aria-live="polite"></div>`);
 el("outfit-status").insertAdjacentHTML("afterend", '<div class="headwear-review"><button id="headwear-detail" aria-pressed="false">Inspect headwear</button><label id="rider-turn-label" hidden>Turn rider<input id="rider-turn" aria-label="Turn rider" type="range" min="-180" max="180" value="0" step="1"></label></div>');
 el("minimap").parentElement!.innerHTML =
   `<div class="map-heading"><span id="map-area">GDAŃSK</span><span class="map-controls"><button id="map-zoom-in" aria-label="Zoom minimap in">+</button><button id="map-zoom-out" aria-label="Zoom minimap out">−</button></span></div><canvas id="minimap" width="560" height="460" aria-label="Nearby streets, buildings, rails, and navigation"></canvas><div class="navigation-summary"><span id="nav-goal">FREE SKATE</span><strong id="nav-distance">M · SET A WAYPOINT</strong></div><div class="map-key"><span><i></i>EVENT</span><span><i></i>TOKEN</span><span id="map-zoom">220 m</span></div>`;
@@ -71,6 +76,7 @@ type Save = {
   records: Record<string, number>;
   outfit: number;
   best: number;
+  raceResults?: Record<string, { time: number; place: number; wins: number }>;
 };
 let save: Save = { version: 1, collected: [], records: {}, outfit: 0, best: 0 };
 function validSave(v: unknown): v is Save {
@@ -86,13 +92,15 @@ function validSave(v: unknown): v is Save {
     typeof s.records === "object" &&
     Object.entries(s.records).every(
       ([k, v]) =>
-        (activities.some((a) => a.id === k) || courses.some(c => c.id === k)) && Number.isFinite(v) && v >= 0,
+        (activities.some((a) => a.id === k) || courses.some(c => c.id === k) || races.some(r => r.id === k)) && Number.isFinite(v) && v >= 0,
     ) &&
     Number.isInteger(s.outfit) &&
     s.outfit >= 0 &&
     s.outfit < 6 &&
     Number.isFinite(s.best) &&
-    s.best >= 0
+    s.best >= 0 &&
+    (s.raceResults === undefined || (s.raceResults !== null && typeof s.raceResults === "object" && Object.entries(s.raceResults).every(([id, result]) =>
+      races.some(r => r.id === id) && result !== null && typeof result === "object" && Number.isFinite(result.time) && result.time > 0 && Number.isInteger(result.place) && result.place >= 1 && result.place <= 4 && Number.isInteger(result.wins) && result.wins >= 0)))
   );
 }
 try {
@@ -498,6 +506,7 @@ async function boot() {
   batchInstances(link);
   batchInstances(landmarks);
   const spotScene = buildSpots(scene, world, { box, cylinder, tree, rail, material });
+  const raceScene = buildRaceScene(scene);
   batchInstances(spotScene.group);
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const localsButton = document.createElement("button");
@@ -555,6 +564,9 @@ async function boot() {
     jumps: number;
   } | null = null;
   let nearest: Activity | undefined;
+  let nearestRace: RaceDefinition | undefined;
+  let raceSession: RaceSession | null = null;
+  let lastCountdownLabel = "";
   let spotRun: SpotRun | null = null;
   let spotChoice = 0;
   let spotCity: City = "gdansk";
@@ -569,6 +581,7 @@ async function boot() {
   }
   function selectedCourse() { return courses.filter(c => c.spot.city === spotCity)[spotChoice]; }
   function startSpot(course: Course) {
+    stopRace();
     stopSpot(); active = null; gate.visible = false; waypoint = null;
     el("event").classList.add("hidden");
     skater.bank();
@@ -608,7 +621,7 @@ async function boot() {
     const city = cityAt(skater.body.translation().x);
     if (!spotRun && city !== spotCity) { spotCity = city; spotChoice = 0; }
     const c = spotRun?.course ?? selectedCourse(), running = spotRun?.status === "riding";
-    el("spot-card").classList.toggle("hidden", !!active);
+    el("spot-card").classList.toggle("hidden", !!active || !!raceSession || !!nearestRace);
     el("spot-kicker").textContent = spotRun?.status === "finished" ? `${spotRun.medal} MEDAL · STAMP EARNED` : spotRun?.status === "failed" ? "ONE MORE TRY?" : c.spot.name;
     el("spot-title").textContent = c.name;
     el("spot-detail").textContent = running
@@ -621,6 +634,7 @@ async function boot() {
     el("spot-leave").hidden = !spotRun;
   }
   function startEvent(a: Activity) {
+    stopRace();
     stopSpot();
     skater.reset(a.x, a.z);
     skater.heading = Math.PI;
@@ -679,6 +693,62 @@ async function boot() {
     el("event").classList.add("hidden");
     persist();
   }
+  function stopRace() {
+    raceSession?.dispose(); raceSession = null;
+    el("race-card").classList.add("hidden"); el("race-countdown").classList.add("hidden");
+  }
+  function startRace(definition: RaceDefinition) {
+    stopRace(); stopSpot(); active = null; gate.visible = false; waypoint = null;
+    el("event").classList.add("hidden");
+    if (crowd.director.follower) crowd.director.invite(crowdPlayer());
+    skater.bank(); raceSession = new RaceSession(world, skater, definition);
+    safe = { ...definition.start }; lookYaw = 0;
+    stream(true); closeMenus(); snapCamera();
+    toast(`${definition.name} · 3 rivals · ${definition.laps === 1 ? "sprint" : `${definition.laps} laps`} · wait for GO`);
+  }
+  el("race-join").onclick = () => { if (nearestRace) startRace(nearestRace); };
+  el("race-restart").onclick = () => { if (raceSession) startRace(raceSession.run.definition); };
+  el("race-leave").onclick = () => { stopRace(); canvas.focus(); toast("Free skate · race left"); };
+  function startNearby() {
+    if (raceSession) { if (raceSession.run.status === "finished" || raceSession.run.status === "timeout") startRace(raceSession.run.definition); return; }
+    if (nearestRace) startRace(nearestRace);
+    else if (nearest) startEvent(nearest);
+    else startSpot(spotRun?.course ?? selectedCourse());
+  }
+  function updateRaceCard() {
+    const run = raceSession?.run, definition = run?.definition ?? nearestRace;
+    el("race-card").classList.toggle("hidden", !definition);
+    if (!definition) { el("race-countdown").classList.add("hidden"); return; }
+    el("race-area").textContent = `${definition.area.toUpperCase()} · STREET RACE`;
+    el("race-title").textContent = definition.name;
+    el("race-join").hidden = !!run; el("race-restart").hidden = !run; el("race-leave").hidden = !run;
+    const best = save.records[definition.id], result = save.raceResults?.[definition.id];
+    el("race-best").textContent = `${best === undefined ? "No personal best yet" : `Best ${best.toFixed(2)}s`}${result ? ` · ${result.wins} win${result.wins === 1 ? "" : "s"}` : ""}`;
+    if (!run) {
+      el("race-stats").textContent = `You + 3 AI riders · ${definition.laps === 1 ? "Point-to-point sprint" : `${definition.laps} laps`} · Enter / Ride to join`;
+      el("race-standings").replaceChildren(); el("race-countdown").classList.add("hidden"); return;
+    }
+    const finished = run.status === "finished", timeout = run.status === "timeout";
+    const lap = Math.min(definition.laps, Math.floor(run.player.gate / definition.checkpoints.length) + 1);
+    el("race-stats").innerHTML = `<b>${finished ? `${placeLabel(run.position)} FINISH` : timeout ? "TIME’S UP" : `${run.position} / 4`}</b><span>${(run.player.finish ?? run.elapsed).toFixed(2)}s · ${finished ? "RESULT SAVED" : timeout ? "Retry for a result" : `LAP ${lap}/${definition.laps} · CP ${Math.min(run.totalGates, run.player.gate + 1)}/${run.totalGates}`}</span>`;
+    el("race-standings").replaceChildren(...run.standings().map((r, i) => {
+      const row = document.createElement("li"); row.classList.toggle("race-you", r.id === "player");
+      row.textContent = `${i + 1}. ${r.name} ${r.finish === null ? "" : `· ${r.finish.toFixed(2)}s`}`; return row;
+    }));
+    const label = run.locked ? String(Math.ceil(run.countdown)) : run.elapsed < 0.8 ? "GO!" : "";
+    if (label !== lastCountdownLabel) { el("race-countdown").textContent = label; lastCountdownLabel = label; }
+    el("race-countdown").classList.toggle("hidden", !label);
+  }
+  function recordRace() {
+    if (!raceSession || raceSession.recorded || raceSession.run.status !== "finished") return;
+    raceSession.recorded = true;
+    const run = raceSession.run, time = run.player.finish!, id = run.definition.id;
+    const old = save.records[id]; if (old === undefined || time < old) save.records[id] = time;
+    save.raceResults ??= {};
+    save.raceResults[id] = { time, place: run.position, wins: (save.raceResults[id]?.wins ?? 0) + Number(run.position === 1) };
+    persist();
+    toast(`${placeLabel(run.position)} · ${run.definition.name} · ${time.toFixed(2)}s${old === undefined || time < old ? " · PERSONAL BEST" : ""}`);
+  }
   let playing = false,
     paused = true,
     helpReturn = "menu";
@@ -689,12 +759,13 @@ async function boot() {
   let wardrobeDetail = false;
   function refreshLobby() {
     el("lobby-progress").textContent =
-      `${save.collected.length} / 120 TOKENS  ·  ${Object.keys(save.records).length} / 42 CHALLENGES`;
+      `${save.collected.length} / 120 TOKENS  ·  ${Object.keys(save.records).length} / 46 CHALLENGES`;
     el("pause-best").textContent = save.best.toLocaleString();
     el("lobby-location").textContent =
       selectedCity === "gdansk" ? "GDAŃSK / MOTŁAWA QUAY" : "RIYADH / AL MASMAK · DEERA";
     el("featured-event").querySelector("strong")!.textContent =
-      selectedCity === "gdansk" ? "QUAY RUN" : "SKYLINE RUN";
+      selectedCity === "gdansk" ? "MOTŁAWA DASH" : "OLAYA SPRINT";
+    el("featured-event").querySelector(".card-detail")!.textContent = "Street race · Beat three local riders";
     for (const city of ["gdansk", "riyadh"] as const) {
       const selected = city === selectedCity;
       el(`select-${city}`).classList.toggle("selected", selected);
@@ -734,12 +805,13 @@ async function boot() {
     actions.clear();
     el("pause").classList.remove("hidden");
     el("progress").textContent =
-      `${save.collected.length}/120 route tokens · ${Object.keys(save.records).length}/42 challenges completed · Best combo ${save.best.toLocaleString()}`;
+      `${save.collected.length}/120 route tokens · ${Object.keys(save.records).length}/46 challenges completed · Best combo ${save.best.toLocaleString()}`;
     persist();
     refreshLobby();
     el("resume").focus();
   }
   function travel(city: City) {
+    stopRace();
     stopSpot();
     active = null;
     gate.visible = false;
@@ -813,6 +885,7 @@ async function boot() {
   el("map-close").onclick = closeMap;
   el("lobby-world").onclick = showMap;
   function previewCity(city: City) {
+    stopRace();
     stopSpot();
     selectedCity = city;
     const start = cityStarts[city];
@@ -826,11 +899,7 @@ async function boot() {
   el("select-gdansk").onclick = () => previewCity("gdansk");
   el("select-riyadh").onclick = () => previewCity("riyadh");
   el("featured-event").onclick = () => {
-    const event = activities.find(
-      (a) => a.city === selectedCity && a.kind === "sprint",
-    )!;
-    streamDestination(event.x, event.z);
-    startEvent(event);
+    startRace(races.find(r => r.city === selectedCity && r.laps === 1)!);
   };
   function showLobby() {
     ["pause", "map", "help"].forEach((id) => el(id).classList.add("hidden"));
@@ -859,13 +928,17 @@ async function boot() {
           `<button data-event="${i}">${a.district} · ${a.kind.toUpperCase()}<small>${a.city === "gdansk" ? "Gdańsk" : "Riyadh"} ${save.records[a.id] !== undefined ? "· completed" : ""}</small></button>`,
       )
       .join("");
+  el("challenge-list").insertAdjacentHTML("afterbegin", races.map(r => `<button data-race="${r.id}">Race: ${r.name}<small>${r.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${r.laps === 1 ? "Sprint" : `${r.laps} laps`} · 3 rivals</small></button>`).join(""));
   el("challenge-list").onclick = (e) => {
+    const raceButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-race]");
+    if (raceButton) { startRace(races.find(r => r.id === raceButton.dataset.race)!); return; }
     const courseButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-course]");
     if (courseButton) { startSpot(courses.find(c => c.id === courseButton.dataset.course)!); return; }
     const landmarkButton = (e.target as HTMLElement).closest<HTMLButtonElement>(
       "[data-landmark]",
     );
     if (landmarkButton) {
+      stopRace();
       stopSpot();
       const l = cityLandmarks.find(
         (l) => l.id === landmarkButton.dataset.landmark,
@@ -1035,7 +1108,7 @@ async function boot() {
   const actions = new ActionBuffer();
   const touch = createTouchControls(actions, {
     pause, map: showMap, recover,
-    event: () => nearest && !spotRun ? startEvent(nearest) : startSpot(spotRun?.course ?? selectedCourse()),
+    event: startNearby,
     toast,
   });
   if (touch.enabled) {
@@ -1130,7 +1203,7 @@ async function boot() {
       if (e.code === "KeyN") inviteLocal();
     }
     if (e.code === "KeyR" && !e.repeat) recover();
-    if (e.code === "Enter" && nearest && !e.repeat) startEvent(nearest);
+    if (e.code === "Enter" && !e.repeat && (nearest || nearestRace || raceSession)) startNearby();
     if (e.code === "F3") {
       e.preventDefault();
       el("debug").classList.toggle("hidden");
@@ -1233,7 +1306,7 @@ async function boot() {
         else pause();
       }
       previousStart = btn(9);
-      if (btn(3) && !previousY && nearest && !paused) startEvent(nearest);
+      if (btn(3) && !previousY && (nearest || nearestRace || raceSession) && !paused) startNearby();
       previousY = btn(3);
       if (btn(1) && !previousB && !paused) recover();
       previousB = btn(1);
@@ -1263,6 +1336,7 @@ async function boot() {
   let safe = { x: initialStart.x, z: initialStart.z },
     safeTimer = 0;
   function recover() {
+    if (raceSession) { startRace(raceSession.run.definition); return; }
     if (spotRun?.status === "riding") { startSpot(spotRun.course); return; }
     skater.reset(safe.x, safe.z);
     lookYaw = 0;
@@ -1300,12 +1374,16 @@ async function boot() {
       const g = spotRun.course.gates[spotRun.gate];
       goal = { x: g.x, z: g.z, label: "NEXT STUNT GATE" };
     }
+    if (raceSession && (raceSession.run.status === "countdown" || raceSession.run.status === "racing")) {
+      const g = raceSession.run.target(); goal = { ...g, label: "NEXT RACE CHECKPOINT" };
+    }
     return {
       position: p,
       heading: skater.heading,
       speed: skater.speed,
       collected: save.collected,
       records: save.records,
+      racers: raceSession?.rivals.map(r => ({ ...r.skater.body.translation() })) ?? [],
       rails: [...railGroups.values()].flat(),
       goal,
     };
@@ -1415,7 +1493,8 @@ async function boot() {
       accumulator += elapsed;
       while (accumulator >= STEP) {
         const rails = [...railGroups.values()].flat();
-        skater.tick(c, rails);
+        skater.tick(raceSession?.run.locked ? idle() : c, rails);
+        raceSession?.beforeStep();
         spotScene.tick(simTime + STEP);
         actions.clear();
         c.jumpPressed = false;
@@ -1424,6 +1503,7 @@ async function boot() {
         previousPosition.copy(skater.body.translation());
         world.step();
         simTime += STEP;
+        raceSession?.afterStep(); recordRace();
         tickSpot();
         accumulator -= STEP;
         const p = skater.body.translation();
@@ -1472,13 +1552,18 @@ async function boot() {
     const p = interpolatedPosition,
       speed = skater.speed;
     skyDome.position.copy(camera.position);
-    crowd.update(simTime, crowdPlayer());
+    nearestRace = !active && spotRun?.status !== "riding" && !raceSession ? races.find(r => Math.hypot(p.x - r.start.x, p.z - r.start.z) < 11) : undefined;
+    raceScene.update(raceSession?.run ?? null, p.x, p.z);
+    crowd.update(simTime, crowdPlayer(), raceSession?.visuals(simTime) ?? []);
     const local = crowd.director.nearbyRider(crowdPlayer());
     localsButton.textContent = crowd.director.follower ? `Riding with ${crowd.director.follower.name} · End` : local ? `${mobileDevice ? "" : "N · "}Ride with ${local.name}` : "Meet a local rider";
     localsButton.disabled = !local && !crowd.director.follower;
     localsButton.hidden = mobileDevice && spotRun?.status === "riding";
     spotScene.animate(simTime);
     updateSpotCard();
+    updateRaceCard();
+    const rideButton = document.querySelector<HTMLButtonElement>('#touch-controls [data-command="event"]');
+    if (rideButton) rideButton.textContent = raceSession?.run.status === "finished" ? "Replay" : nearestRace || raceSession ? "Race" : "Ride";
     rider.position.set(p.x, p.y - 0.83, p.z);
     rider.rotation.y =
       skater.heading +
@@ -1663,7 +1748,7 @@ async function boot() {
         : "";
       el("trick").textContent = skater.liveTrick || (skater.combo ? skater.lastTrick : "");
       el("hint").innerHTML =
-        nearest && !active
+        nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
           ? `<kbd>Enter / Y</kbd> ${nearest.district} · ${nearest.kind.toUpperCase()}`
           : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>Z/C</kbd> 180 · <kbd>F/X/V/B</kbd> stunts · <kbd>E</kbd> rail assist · <kbd>H</kbd> controls · <kbd>M</kbd> map";
       if (active) {
@@ -1719,6 +1804,9 @@ async function boot() {
           spot: spotRun ? { id: spotRun.course.id, gate: spotRun.gate, elapsed: spotRun.elapsed, status: spotRun.status, medal: spotRun.medal } : null,
           spotStamps: courses.filter(c => save.records[c.id] !== undefined).length,
           crowd: crowd.diagnostics,
+          race: raceSession ? { id: raceSession.run.definition.id, status: raceSession.run.status, countdown: raceSession.run.countdown, elapsed: raceSession.run.elapsed, position: raceSession.run.position, gate: raceSession.run.player.gate, totalGates: raceSession.run.totalGates, finish: raceSession.run.player.finish, standings: raceSession.run.standings().map(r => ({ id: r.id, name: r.name, gate: r.gate, finish: r.finish, position: { ...r.position } })) } : null,
+          nearbyRace: nearestRace?.id ?? null,
+          raceResults: { ...(save.raceResults ?? {}) },
           touch: { enabled: touch.enabled, ...touch.state },
           cameraLook: { yaw: lookYaw, pitch: lookPitch },
           grindStyle: skater.grindStyle,

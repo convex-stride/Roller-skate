@@ -56,12 +56,13 @@ await writeFile(resolve(root, "releases/Between-Cities-Rails.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Contrasts.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Play.html"), html);
 await writeFile(resolve(root, "releases/Between-Cities-Alive.html"), html);
+await writeFile(resolve(root, "releases/Between-Cities-Races.html"), html);
 execFileSync(
   "zip",
-  ["-q", "-FS", "-r", resolve(root, "releases/between-cities-v0.11.zip"), "."],
+  ["-q", "-FS", "-r", resolve(root, "releases/between-cities-v0.12.zip"), "."],
   { cwd: dist },
 );
 console.log(
   "Packaged releases/Between-Cities.html (self-contained browser build)",
 );
-console.log("Packaged releases/between-cities-v0.11.zip (itch.io build)");
+console.log("Packaged releases/between-cities-v0.12.zip (itch.io build)");
