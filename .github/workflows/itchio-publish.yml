@@ -76,12 +76,17 @@ jobs:
           [[ "$TARGET" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$ ]] || { echo "::error::Use username/game-slug as itch target"; exit 1; }
           if [[ "$WEB" == true ]]; then
             test -f artifacts/web/layans-skate-web.zip
-            butler push artifacts/web/layans-skate-web.zip "$TARGET:html5"
+            mkdir -p artifacts/web-expanded
+            unzip -q artifacts/web/layans-skate-web.zip -d artifacts/web-expanded
+            test -f artifacts/web-expanded/index.html
+            butler push artifacts/web-expanded "$TARGET:html5"
           fi
           if [[ "$WIN" == true ]]; then
             test -d artifacts/windows
             test "$(find artifacts/windows -name '*.msi' | wc -l)" -eq 1
-            butler push artifacts/windows "$TARGET:windows"
+            mkdir -p artifacts/windows-release
+            find artifacts/windows -type f \( -name "*.msi" -o -name "*.exe" \) -exec cp {} artifacts/windows-release/ \;
+            butler push artifacts/windows-release "$TARGET:windows"
           fi
           if [[ "$ANDROID" == true ]]; then
             test -f artifacts/android/Layans-Skate-v0.23.0-android-release.apk
