@@ -23,6 +23,8 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Normalize npm lockfile for CI
+        run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - run: npm test
       - run: npm run build
@@ -46,6 +48,8 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - name: Normalize npm lockfile for CI
+        run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - name: Generate Tauri Windows icons
         run: npx --yes @tauri-apps/cli@2 icon tools/tauri-icon.svg --output src-tauri/icons
