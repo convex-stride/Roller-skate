@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { landmarks, landmarkAt, cityStarts, practiceRails } from "../src/city-profile";
 import { clearGround, inWorld, buildings, streets } from "../src/world";
+import { findRoute } from "../src/navigation";
 it("uses narrow, dense Gdańsk terraces and larger, taller Riyadh blocks", () => {
   const gd = buildings(-1500, -300, "gdansk"), ry = buildings(700, -300, "riyadh");
   const mean = (b: typeof gd, key: "w" | "h") => b.reduce((a, v) => a + v[key], 0) / b.length;
@@ -34,8 +35,8 @@ describe("city-specific landmarks", () => {
     expect(masmakNeighbors.every(b => b.style === "najdi" && b.h < 16)).toBe(true);
     for (const b of outer) expect(clearGround(b.x + b.w / 2 + 2, b.z, 0)).toBe(false);
   });
-  it("provides eight distinct landmark destinations with legal arrival points", () => {
-    expect(new Set(landmarks.map((l) => l.id)).size).toBe(8);
+  it("provides ten distinct landmark destinations with legal arrival points", () => {
+    expect(new Set(landmarks.map((l) => l.id)).size).toBe(10);
     for (const l of landmarks) {
       expect(inWorld(l.spawn.x, l.spawn.z)).toBe(true);
       expect(clearGround(l.spawn.x, l.spawn.z, 0.7)).toBe(true);
@@ -49,6 +50,17 @@ describe("city-specific landmarks", () => {
       const rail = practiceRails[i];
       for (let t = 0; t <= 1; t += 0.05) {
         expect(clearGround(start.x + (rail.x - start.x) * t, start.z + (rail.z - start.z) * t, 0.7)).toBe(true);
+      }
+    }
+  });
+  it("connects the new landmark viewpoints to each city's starting district", () => {
+    for (const id of ["st-marys", "pif-tower"]) {
+      const l = landmarks.find(l => l.id === id)!;
+      const route = findRoute(cityStarts[l.city], l.spawn);
+      expect(route.length).toBeGreaterThan(1);
+      for (let i = 1; i < route.length; i++) {
+        const a = route[i - 1], b = route[i], count = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z));
+        for (let n = 0; n <= count; n++) expect(clearGround(a.x + (b.x - a.x) * n / count, a.z + (b.z - a.z) * n / count, .6)).toBe(true);
       }
     }
   });

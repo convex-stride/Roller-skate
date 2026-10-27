@@ -62,9 +62,10 @@ await writeFile(resolve(root, "releases/Layans-Skate-Quests.html"), html);
 await writeFile(resolve(root, "releases/Layans-Skate-Taqee.html"), html);
 await writeFile(resolve(root, "releases/Layans-Skate-Helmets.html"), html);
 await writeFile(resolve(root, "releases/Layans-Skate-Flips.html"), html);
+await writeFile(resolve(root, "releases/Layans-Skate-Cities.html"), html);
 execFileSync(
   "zip",
-  ["-q", "-FS", "-r", resolve(root, "releases/layans-skate-v0.17.zip"), "."],
+  ["-q", "-FS", "-r", resolve(root, "releases/layans-skate-v0.18.zip"), "."],
   { cwd: dist },
 );
 console.log(
@@ -74,4 +75,6 @@ console.log("Packaged releases/Layans-Skate-Quests.html (quest update)");
 console.log("Packaged releases/Layans-Skate-Taqee.html (companion update)");
 console.log("Packaged releases/Layans-Skate-Helmets.html (helmets and guards update)");
 console.log("Packaged releases/Layans-Skate-Flips.html (flips and airtime update)");
-console.log("Packaged releases/layans-skate-v0.17.zip (itch.io build)");
+console.log("Packaged releases/layans-skate-v0.18.zip (itch.io build)");
+
+console.log("Packaged releases/Layans-Skate-Cities.html (city graphics and landmarks update)");

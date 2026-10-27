@@ -2,7 +2,7 @@ export type Landmark = {
   id: string;
   name: string;
   city: "gdansk" | "riyadh";
-  kind: "crane" | "townhall" | "gate" | "kingdom" | "faisaliyah" | "masmak" | "neptune" | "deera";
+  kind: "crane" | "townhall" | "gate" | "kingdom" | "faisaliyah" | "masmak" | "neptune" | "deera" | "basilica" | "pif";
   x: number;
   z: number;
   w: number;
@@ -29,6 +29,18 @@ export function inHeritageSquare(x: number, z: number, margin = 0) {
 }
 // Compressed architectural interpretations, not surveyed building coordinates.
 export const landmarks: Landmark[] = [
+  {
+    id: "st-marys", name: "St. Mary’s Basilica", city: "gdansk", kind: "basilica",
+    x: -1120, z: -20, w: 43, d: 66, h: 68,
+    spawn: { x: -1000, z: -210 },
+    description: "Gdańsk’s monumental brick church: broad square bell tower, stepped gables and tall pointed windows.",
+  },
+  {
+    id: "pif-tower", name: "PIF Tower · KAFD", city: "riyadh", kind: "pif",
+    x: 1100, z: -350, w: 42, d: 42, h: 142,
+    spawn: { x: 1100, z: -600 },
+    description: "The faceted glass tower and angular crown of King Abdullah Financial District, in a compressed skyline setting.",
+  },
   {
     id: "neptune", name: "Neptune’s Fountain", city: "gdansk", kind: "neptune",
     x: -1000, z: -38, w: 7, d: 7, h: 6,

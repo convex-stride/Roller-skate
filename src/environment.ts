@@ -4,6 +4,16 @@ import { centers, hash, streets, type Building, type City } from "./world";
 import { inHeritageSquare, heritageShops } from "./city-profile";
 import { insideSpot, outsideParkFootprints } from "./spots";
 
+const roofGeometry = new THREE.BufferGeometry();
+roofGeometry.setAttribute("position", new THREE.Float32BufferAttribute([-.5, 0, -.5, -.5, 0, .5, -.5, 1, 0, .5, 0, -.5, .5, 0, .5, .5, 1, 0], 3));
+roofGeometry.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, .5, 1, 0, 1, 1, 1, .5], 2));
+roofGeometry.setIndex([0, 1, 2, 3, 5, 4, 0, 5, 3, 0, 2, 5, 2, 4, 5, 2, 1, 4]);
+const roofPrism = roofGeometry.toNonIndexed(); roofPrism.computeVertexNormals(); roofGeometry.dispose();
+const gableGeometry = new THREE.BufferGeometry();
+gableGeometry.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, -.5, 0, 1, 0, 0, 0, .5, 0, 0, -.5, 0, 0, .5, 0, 1, 0], 3));
+gableGeometry.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, .5, 1, 1, 0, 0, 0, 1, 0, .5, 1], 2)); gableGeometry.computeVertexNormals();
+export const buildingGeometries = [roofPrism, gableGeometry];
+
 export type StreetKit = {
   box: (
     g: THREE.Group,
@@ -41,104 +51,8 @@ export type StreetKit = {
   ) => THREE.MeshStandardMaterial;
 };
 
-const textures = new Map<string, THREE.CanvasTexture>();
-/** Hand-drawn surface patterns at believable scale; no downloads or image assets. */
-function texture(kind: "plaster" | "brick" | "paving" | "asphalt" | "roof") {
-  if (textures.has(kind)) return textures.get(kind)!;
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const ctx = c.getContext("2d")!;
-  ctx.fillStyle =
-    kind === "asphalt"
-      ? "#a9aaa8"
-      : kind === "brick"
-        ? "#a49a8e"
-        : kind === "roof"
-          ? "#b7a89b"
-          : "#e1e0d8";
-  ctx.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 6500; i++) {
-    const x = hash(i, 2) * 256,
-      y = hash(i, 3) * 256,
-      v = hash(i, 4);
-    ctx.fillStyle = `rgba(${v > 0.5 ? "255,255,244" : "35,34,29"},${kind === "plaster" ? 0.035 : 0.07})`;
-    ctx.fillRect(x, y, 1 + v * 2, 1);
-  }
-  if (kind === "brick" || kind === "roof") {
-    const height = kind === "brick" ? 20 : 13;
-    for (let row = 0; row < 256 / height; row++) {
-      ctx.strokeStyle = "rgba(35,30,25,.22)";
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(0, row * height);
-      ctx.lineTo(256, row * height);
-      ctx.stroke();
-      for (let col = -1; col < 8; col++) {
-        const x = col * 48 + (row % 2) * 24;
-        ctx.beginPath();
-        ctx.moveTo(x, row * height);
-        ctx.lineTo(x, (row + 1) * height);
-        ctx.stroke();
-        ctx.fillStyle = `rgba(255,250,230,${hash(row, col) * 0.1})`;
-        ctx.fillRect(x + 2, row * height + 2, 44, height - 4);
-      }
-    }
-  }
-  if (kind === "paving")
-    for (let row = 0; row < 8; row++)
-      for (let col = -1; col < 8; col++) {
-        const x = col * 48 + (row % 2) * 24,
-          y = row * 32;
-        ctx.strokeStyle = "rgba(37,44,40,.25)";
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(x, y, 48, 32);
-        ctx.fillStyle = `rgba(60,57,46,${hash(row, col) * 0.07})`;
-        ctx.fillRect(x + 1, y + 1, 46, 30);
-      }
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  textures.set(kind, t);
-  return t;
-}
-const surfaceMaterials = new Map<string, THREE.MeshStandardMaterial>();
-export function surface(
-  kind: "plaster" | "brick" | "paving" | "asphalt" | "roof",
-  color: number,
-) {
-  const key = kind + color;
-  if (!surfaceMaterials.has(key)) {
-    const t = texture(kind).clone();
-    t.needsUpdate = true;
-    t.repeat.set(
-      kind === "paving" ? 4 : kind === "brick" ? 3 : 1,
-      kind === "paving" ? 4 : kind === "brick" ? 3 : 1,
-    );
-    const mat = new THREE.MeshStandardMaterial({
-      map: t,
-      color,
-      roughness: kind === "asphalt" ? 0.98 : 0.87,
-    });
-    if (kind === "paving" || kind === "asphalt")
-      mat.onBeforeCompile = (shader) => {
-        shader.vertexShader =
-          "varying vec3 vStreetPosition;\n" + shader.vertexShader;
-        shader.vertexShader = shader.vertexShader.replace(
-          "#include <begin_vertex>",
-          "#include <begin_vertex>\nvec4 streetPosition=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\nstreetPosition=instanceMatrix*streetPosition;\n#endif\nvStreetPosition=(modelMatrix*streetPosition).xyz;",
-        );
-        shader.fragmentShader =
-          "varying vec3 vStreetPosition;\n" + shader.fragmentShader;
-        shader.fragmentShader = shader.fragmentShader.replace(
-          "#include <map_fragment>",
-          "#ifdef USE_MAP\nvec4 sampledDiffuseColor=texture2D(map,vStreetPosition.xz*0.22);\ndiffuseColor*=sampledDiffuseColor;\n#endif",
-        );
-      };
-    surfaceMaterials.set(key, mat);
-  }
-  return surfaceMaterials.get(key)!;
-}
+import { surface, glazing, waterMaterial } from "./world-materials";
+export { surface } from "./world-materials";
 const signMaterials = new Map<string, THREE.MeshBasicMaterial>();
 function signMaterial(
   text: string,
@@ -228,34 +142,18 @@ export function architecture(
     city === "gdansk" ? 0x777068 : 0xc7b392,
   );
   if (city === "gdansk") {
-    // An actual pitched prism gives each merchant house a gable, not a pyramid.
-    const w = b.w / 2 + 0.5,
-      d = b.d / 2 + 0.5,
-      h = 3.4;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(
-        [-w, 0, -d, -w, 0, d, -w, h, 0, w, 0, -d, w, 0, d, w, h, 0],
-        3,
-      ),
-    );
-    geo.setAttribute(
-      "uv",
-      new THREE.Float32BufferAttribute(
-        [0, 0, 0, 1, 0, 0.5, 1, 0, 1, 1, 1, 0.5],
-        2,
-      ),
-    );
-    geo.setIndex([0, 1, 2, 3, 5, 4, 0, 5, 3, 0, 2, 5, 2, 4, 5, 2, 1, 4]);
-    geo.computeVertexNormals();
-    const roof = new THREE.Mesh(
-      geo,
-      surface("roof", hash(b.x, b.z) > 0.5 ? 0x85533f : 0x465451),
-    );
-    roof.position.set(b.x, b.h + 0.3, b.z);
-    roof.castShadow = true;
-    g.add(roof);
+    // Shared, flat-normal roof prisms and plaster gables keep pitched roofs crisp.
+    const roof = new THREE.Mesh(roofPrism, surface("roof", hash(b.x, b.z) > .5 ? 0x855e4c : 0x55635e));
+    roof.position.set(b.x, b.h + .3, b.z); roof.scale.set(b.w + 1, 3.4, b.d + 1); roof.castShadow = true; g.add(roof);
+    for (const face of [-1, 1]) {
+      const front = b.x + face * (b.w / 2 + .02);
+      const gable = new THREE.Mesh(gableGeometry, surface("plaster", b.color));
+      gable.position.set(front, b.h + .31, b.z); gable.scale.set(1, 3.3, b.d); gable.castShadow = true; g.add(gable);
+      const half = b.d / 2, slope = Math.atan2(3.4, half);
+      for (const edge of [-1, 1]) box(g, front + face * .08, b.h + 2, b.z + edge * half / 2, .22, .16, Math.hypot(half, 3.4), 0xc0b8a1, false, edge * slope);
+      box(g, front + face * .09, b.h + 1.2, b.z, .13, 1.15, 1.1, 0xb7b19d);
+      box(g, front + face * .17, b.h + 1.2, b.z, .12, .85, .76, 0x34494d).material = glazing(0x596d73);
+    }
     box(g, b.x - 2, b.h + 2.2, b.z - 4, 1, 3, 1.2, 0x86735f);
     for (const dz of [-b.d / 2 + 0.5, b.d / 2 - 0.5])
       box(
@@ -320,7 +218,7 @@ export function architecture(
           city === "gdansk" ? 0xd0c7b3 : 0xb29c7b,
         );
         const glass = box(g, x + face * 0.1, y, z, 0.12, 1.83, 1.35, 0x344d50);
-        glass.material = k.material(0x344d50, 0.24, 0.2);
+        glass.material = glazing(0x758986);
         box(g, x + face * 0.18, y, z, 0.1, 0.075, 1.38, 0x8f9c94);
         box(g, x + face * 0.18, y, z, 0.1, 1.85, 0.075, 0x8f9c94);
         if (city === "riyadh")
@@ -343,8 +241,8 @@ export function architecture(
   // Side elevations have fewer openings and downpipes rather than blank walls.
   for (const face of [-1, 1]) {
     for (let y = 6; y < b.h - 1; y += 3.2)
-      for (const dx of [-b.w * 0.27, b.w * 0.27])
-        box(
+      for (const dx of [-b.w * 0.27, b.w * 0.27]) {
+        const sideGlass = box(
           g,
           b.x + dx,
           y,
@@ -354,6 +252,9 @@ export function architecture(
           0.14,
           0x40545a,
         );
+        sideGlass.material = glazing(0x657b80);
+        box(g, b.x + dx, y - 1.05, b.z + face * (b.d / 2 + .18), 1.6, .14, .42, 0xc5bdac);
+      }
     box(
       g,
       b.x + b.w / 2 + 0.12,
@@ -366,6 +267,13 @@ export function architecture(
     );
   }
   const front = b.x + side * (b.w / 2 + 0.3);
+  // Stone door surrounds and rainwater hardware give the street an inhabited scale.
+  for (const dz of [-b.d * .26, b.d * .26]) {
+    for (const edge of [-1, 1]) box(g, front + side * .12, 1.65, b.z + dz + edge * 1.87, .22, 3.25, .16, 0xb7b09e);
+    box(g, front + side * .12, 3.31, b.z + dz, .24, .18, 3.95, 0xb7b09e);
+    const door = box(g, front + side * .12, 1.4, b.z + dz + .75, .12, 2.6, 1.65, 0x473e32); door.material = surface("timber", 0x7e6c55);
+    box(g, front + side * .23, 1.5, b.z + dz + .18, .09, .34, .055, 0xc4b797).material = k.material(0xc4b797, .3, .6);
+  }
   for (const dz of [-b.d * 0.26, b.d * 0.26]) {
     box(g, front, 1.7, b.z + dz, 0.16, 2.85, 3.6, 0x263e3e);
     box(g, front + side * 0.1, 1.7, b.z + dz, 0.1, 2.9, 0.09, 0xb5a78c);
@@ -453,6 +361,10 @@ function najdiArchitecture(g: THREE.Group, b: Building, k: StreetKit) {
       }
     }
     box(g, face, 1.4, b.z, 0.14, 2.8, 2.1, 0x5e4430);
+    for (const dz of [-1.3, 1.3]) box(g, face + side * .08, 1.65, b.z + dz, .24, 3.3, .22, 0xe0c5a0);
+    box(g, face + side * .08, 3.3, b.z, .24, .25, 2.85, 0xe0c5a0);
+    for (let dz = -b.d / 2 + 1; dz < b.d / 2; dz += 2.7)
+      box(g, face + side * .28, b.h - 1.05, b.z + dz, .65, .22, .24, 0x6e5039).material = surface("timber", 0x7c6046);
     // Deep street arcade, with readable solid piers and open passage below.
     box(g, face + side * 2, 3.7, b.z, 4, 0.35, b.d, 0xc9ad81);
     for (let z = -b.d / 2 + 1; z < b.d / 2; z += 6)
@@ -472,11 +384,18 @@ export function streetDetails(
   if (!waterfront) {
     for (const patch of outsideParkFootprints({ x: cx, z: cz, w: 200, d: 200 })) {
       const base = box(g, patch.x, 0.012, patch.z, patch.w, 0.02, patch.d, historic ? 0xaaa896 : 0xcbb695);
-      base.material = surface(historic ? "paving" : "plaster", historic ? 0x939e9b : 0xcab182);
+      base.material = surface(historic ? "paving" : "stone", historic ? 0x939e9b : 0xc5b89c);
     }
     for (const road of streets(cx, cz, city).flatMap(outsideParkFootprints)) {
       const lane = box(g, road.x, 0.034, road.z, road.w, 0.018, road.d, 0x606763);
       lane.material = surface(historic ? "paving" : "asphalt", historic ? 0x949d91 : 0x50595c);
+      if (road.w <= 28 && road.d > 20) for (const side of [-1, 1]) {
+        const edge = road.x + side * (road.w / 2 + .2);
+        const curb = box(g, edge, .065, road.z, .38, .045, Math.max(1, road.d - 3), historic ? 0x999d96 : 0xb5ac99);
+        curb.material = surface("stone", historic ? 0xaaa99f : 0xcec3aa);
+        // Flush drainage grates stay out of the riding collision and junctions.
+        for (let i = 0; i < 6; i++) box(g, edge - side * .3, .047, road.z + i * .13 - .32, .42, .008, .045, 0x4f5855);
+      }
       // Lane paint belongs only to the broad, north-south Riyadh arteries.
       if (!historic && road.d === 200)
         for (const roadX of [200, 600, 1000, 1400, 1800])
@@ -688,11 +607,7 @@ export function arrivalDistrict(g: THREE.Group, city: City, k: StreetKit) {
     // Lower water, stone quay walls and a flush bridge with collision.
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(200, 24),
-      new THREE.MeshStandardMaterial({
-        color: 0x387a80,
-        roughness: 0.24,
-        metalness: 0.35,
-      }),
+      waterMaterial(),
     );
     water.rotation.x = -Math.PI / 2;
     water.position.set(x, -0.6, 98);

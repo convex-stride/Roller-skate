@@ -6,10 +6,12 @@ Version 0.9 is a connected skating interpretation of Gdańsk and Riyadh. It is n
 
 | City | Architectural reference | Features represented |
 | --- | --- | --- |
+| Gdańsk | St. Mary’s Basilica | Broad square brick bell tower, pointed windows, buttresses and stepped gables; compressed simplified geometry |
 | Gdańsk | Żuraw | Brick harbour-gate towers and a projecting dark timber crane structure |
 | Gdańsk | Main Town Hall | Gothic brick massing, a clock tower, and a copper-colored spire |
 | Gdańsk | Green Gate | Long Renaissance façade and four open ground-floor passages |
 | Gdańsk | Neptune’s Fountain | Stone basin, bronze figure and three-pronged trident; simplified sculptural anatomy |
+| Riyadh | PIF Tower / KAFD | Faceted glass shaft, rising structural ribs and angular crown; isolated tower interpretation rather than a reconstruction of the whole financial district |
 | Riyadh | Kingdom Centre | Tapered tower with a large curved upper opening and skybridge |
 | Riyadh | Al Faisaliyah | Triangular profile and golden globe near the upper section |
 | Riyadh | Masmak | Earth-colored fortress walls and four round corner towers |

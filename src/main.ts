@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
+import { cityReflections, balticFoliage } from "./world-art";
+import { surface, waterMaterial, waterTime } from "./world-materials";
 import { RAPIER, Skater, STEP, idle, type Rail } from "./physics";
 import { ActionBuffer, createGamepadReader } from "./input";
 import { createTouchControls } from "./touch";
@@ -17,7 +19,7 @@ import { quests, QuestRun, questXP, validQuestSnapshot, type QuestDefinition, ty
 import { buildQuestScene } from "./quest-scene";
 import { streetBankGeometry } from "./street-bank";
 import { Companion, type PartnerMode } from "./companion";
-import { destinations, destinationFor, type Destination } from "./destinations";
+import { destinations, destinationFor, destinationNear, type Destination } from "./destinations";
 import { landmarks as cityLandmarks, cityStarts, practiceRails } from "./city-profile";
 import { menus } from "./menus";
 import { loadPreferences, bindPreferences, type Preferences } from "./settings";
@@ -25,6 +27,7 @@ import {
   architecture,
   streetDetails,
   arrivalDistrict,
+  buildingGeometries,
 } from "./environment";
 import {
   buildings,
@@ -173,13 +176,16 @@ async function boot() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.95;
   const scene = new THREE.Scene();
+  const reflections = cityReflections(renderer);
+  scene.environment = reflections.gdansk;
+  scene.environmentIntensity = .48;
   const skyDome = new Sky();
   skyDome.scale.setScalar(1400);
   skyDome.material.uniforms.turbidity.value = 3.5;
   skyDome.material.uniforms.rayleigh.value = 1.8;
   skyDome.material.uniforms.mieCoefficient.value = 0.004;
   skyDome.material.uniforms.mieDirectionalG.value = 0.8;
-  skyDome.material.uniforms.sunPosition.value.set(-0.45, 0.75, 0.45);
+  skyDome.material.uniforms.sunPosition.value.set(-0.45, 0.75, 0.45).multiplyScalar(450000);
   scene.add(skyDome);
   scene.background = new THREE.Color(0x9dbdc4);
   scene.fog = new THREE.Fog(0x9dbdc4, 160, 680);
@@ -189,7 +195,7 @@ async function boot() {
     0.1,
     1700,
   );
-  const hemi = new THREE.HemisphereLight(0xdcebf4, 0x726852, 1.35);
+  const hemi = new THREE.HemisphereLight(0xdcebf4, 0x726852, .8);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffe7bf, 3.5);
   sun.position.set(-1040, 100, 60);
@@ -202,6 +208,7 @@ async function boot() {
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 250;
   sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = .035;
   scene.add(sun, sun.target);
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   world.timestep = STEP;
@@ -219,7 +226,7 @@ async function boot() {
     return mats.get(key)!;
   };
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 8);
+  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 16);
   const sphereGeo = new THREE.SphereGeometry(1, 12, 8);
   const leafGeo = new THREE.BufferGeometry();
   const leafPositions: number[] = [],
@@ -240,7 +247,8 @@ async function boot() {
   );
   leafGeo.setIndex(leafIndices);
   leafGeo.computeVertexNormals();
-  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo];
+  const foliage = balticFoliage();
+  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo, foliage.geometry, ...buildingGeometries];
   const streetBankMeshes = new Map<string, THREE.BufferGeometry>();
   const collidersByGroup = new Map<THREE.Group, RAPIER.Collider[]>();
   function box(
@@ -311,7 +319,7 @@ async function boot() {
   box(bases, 0, -0.3, 0, 400, 0.6, 300, 0xb7b8a1, true);
   const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(3200, 5000),
-    material(0x709da7, 0.3, 0.2),
+    waterMaterial(),
   );
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(-1800, -4, 0);
@@ -390,21 +398,17 @@ async function boot() {
     railGroups.set(g, a);
   }
   function tree(g: THREE.Group, x: number, z: number, city: City) {
-    cylinder(g, x, 2.8, z, city === "gdansk" ? 0.24 : 0.3, 5.6, 0x786b51);
+    const trunk = cylinder(g, x, 2.8, z, city === "gdansk" ? 0.24 : 0.3, 5.6, 0x786b51);
+    trunk.material = surface("timber", 0x887c68);
     if (city === "gdansk") {
-      for (let i = 0; i < 5; i++) {
-        const crown = new THREE.Mesh(
-          sphereGeo,
-          material([0x566d4e, 0x6c805a, 0x75865e][i % 3]),
-        );
-        crown.position.set(
-          x + Math.sin(i * 2.4) * 1.3,
-          5.8 + hash(x, z, i) * 1.7,
-          z + Math.cos(i * 2.4) * 1.1,
-        );
-        crown.scale.set(1.9, 2 + hash(x, z, i), 1.8);
-        crown.castShadow = true;
-        g.add(crown);
+      const crown = new THREE.Mesh(foliage.geometry, foliage.material);
+      crown.position.set(x, 6.5 + hash(x, z) * .7, z);
+      crown.rotation.y = hash(x, z) * Math.PI * 2;
+      crown.scale.setScalar(1 + hash(x, z, 4) * .25);
+      crown.castShadow = true; crown.receiveShadow = true; g.add(crown);
+      for (const side of [-1, 1]) {
+        const branch = cylinder(g, x + side * .45, 4.8, z, .12, 2.1, 0x786b51);
+        branch.rotation.z = side * .55;
       }
     } else {
       const leafMaterial = material(0x647844);
@@ -422,13 +426,13 @@ async function boot() {
     }
   }
   const chunks = new Map<string, THREE.Group>();
-  function batchInstances(g: THREE.Group) {
+  function batchInstances(g: THREE.Group, allGeometry = false) {
     const batches = new Map<string, THREE.Mesh[]>();
     for (const child of [...g.children])
       if (
         child instanceof THREE.Mesh &&
         child.visible &&
-        sharedGeometries.includes(child.geometry)
+        (allGeometry || sharedGeometries.includes(child.geometry))
       ) {
         const key = `${child.geometry.uuid}-${(child.material as THREE.Material).uuid}`;
         const list = batches.get(key) || [];
@@ -546,11 +550,11 @@ async function boot() {
   // Articulated procedural rider: the physics capsule stays independent of the visual pose.
   batchInstances(training);
   batchInstances(link);
-  batchInstances(landmarks);
+  batchInstances(landmarks, true);
   const spotScene = buildSpots(scene, world, { box, cylinder, tree, rail, material });
   const raceScene = buildRaceScene(scene);
   const questScene = buildQuestScene(scene);
-  spotScene.groups.forEach(batchInstances);
+  spotScene.groups.forEach(g => batchInstances(g));
   batchInstances(spotScene.group);
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const companion = new Companion(world, skater);
@@ -708,7 +712,7 @@ async function boot() {
       spotCity = nearbyPark.city; spotChoice = courses.filter(c => c.spot.city === spotCity).findIndex(c => c.spot.id === nearbyPark.id); suggestedPark = nearbyPark.id;
     }
     const c = spotRun?.course ?? selectedCourse(), running = spotRun?.status === "riding";
-    el("spot-card").classList.toggle("hidden", !!active || !!raceSession || !!nearestRace || (spotRun?.status !== "riding" && (!!focusedQuest || !!nearestQuest || !!questRun)));
+    el("spot-card").classList.toggle("hidden", (!spotRun && !nearbyPark) || !!active || !!raceSession || !!nearestRace || (spotRun?.status !== "riding" && (!!focusedQuest || !!nearestQuest || !!questRun)));
     el("spot-kicker").textContent = spotRun?.status === "finished" ? `${spotRun.medal} MEDAL · STAMP EARNED` : spotRun?.status === "failed" ? "ONE MORE TRY?" : c.spot.name;
     el("spot-title").textContent = c.name;
     el("spot-detail").textContent = running
@@ -1143,6 +1147,8 @@ async function boot() {
       el("event").classList.add("hidden");
       skater.reset(l.spawn.x, l.spawn.z);
       skater.heading = Math.atan2(l.x - l.spawn.x, l.z - l.spawn.z);
+      lookYaw = 0;
+      lookPitch = l.h > 45 ? -.12 : .1;
       safe = { ...l.spawn };
       stream(true);
       closeMenus();
@@ -1473,7 +1479,7 @@ async function boot() {
             0.003 *
             preferences.sensitivity *
             (preferences.invert ? -1 : 1),
-        -0.1,
+        -0.6,
         0.7,
       );
       lastLook = performance.now();
@@ -1555,7 +1561,7 @@ async function boot() {
               0.02 *
               preferences.sensitivity *
               (preferences.invert ? -1 : 1),
-          -0.1,
+          -0.6,
           0.7,
         );
         lastLook = performance.now();
@@ -1586,10 +1592,10 @@ async function boot() {
     cameraGroundY = p.y;
     camera.position.set(
       p.x - Math.sin(skater.heading) * 6.2,
-      p.y + 1.65 + lookPitch * 2.5,
+      p.y + 1.65 + Math.max(-.2, lookPitch) * 2.5,
       p.z - Math.cos(skater.heading) * 6.2,
     );
-    camera.lookAt(p.x, p.y + 0.7, p.z);
+    camera.lookAt(p.x, p.y + .65 + Math.max(0, -lookPitch) * 8, p.z);
     camera.fov = preferences.fov;
     camera.updateProjectionMatrix();
   }
@@ -1692,9 +1698,9 @@ async function boot() {
   };
   el("world-map").addEventListener("click", (e) => {
     const map = el("world-map") as HTMLCanvasElement, raw = navigation.mapPoint(map, e.clientX, e.clientY);
-    const near = [...destinations].sort((a, b) => Math.hypot(a.x - raw.x, a.z - raw.z) - Math.hypot(b.x - raw.x, b.z - raw.z))[0];
     const hitRadius = (mobileDevice ? 18 : 10) * map.width / map.getBoundingClientRect().width / navigation.largeScale(map);
-    if (!pinMode && !e.shiftKey && near && Math.hypot(near.x - raw.x, near.z - raw.z) < hitRadius) { setDestination({ x: near.x, z: near.z, label: near.label }, near); return; }
+    const near = destinationNear(raw.x, raw.z, hitRadius);
+    if (!pinMode && !e.shiftKey && near) { setDestination({ x: near.x, z: near.z, label: near.label }, near); return; }
     const point = navigation.worldPoint(
       el("world-map") as HTMLCanvasElement,
       e.clientX,
@@ -1931,10 +1937,10 @@ async function boot() {
       if (skater.grounded || skater.grinding)
         cameraGroundY = THREE.MathUtils.damp(cameraGroundY, p.y, 9, elapsed);
       const followY = cameraGroundY + (p.y - cameraGroundY) * 0.35;
-      target.set(p.x, p.y + 0.65, p.z);
+      target.set(p.x, p.y + .65 + Math.max(0, -lookPitch) * 8, p.z);
       desired.set(
         p.x - Math.sin(yaw) * distance,
-        followY + 1.65 + lookPitch * 2.5,
+        followY + 1.65 + Math.max(-.2, lookPitch) * 2.5,
         p.z - Math.cos(yaw) * distance,
       );
       camera.position.lerp(desired, 1 - Math.exp(-elapsed * 7));
@@ -1958,6 +1964,9 @@ async function boot() {
       camera.updateProjectionMatrix();
     }
     const blend = THREE.MathUtils.smoothstep(p.x, -180, 180);
+    waterTime.value = simTime;
+    scene.environment = blend > .5 ? reflections.riyadh : reflections.gdansk;
+    scene.environmentIntensity = THREE.MathUtils.lerp(.48, .6, blend);
     const sky = new THREE.Color(0x9dbdc4).lerp(
       new THREE.Color(0xd9c3a0),
       blend,
@@ -1965,9 +1974,10 @@ async function boot() {
     (scene.background as THREE.Color).copy(sky);
     (scene.fog as THREE.Fog).color.copy(sky);
     skyDome.material.uniforms.turbidity.value = THREE.MathUtils.lerp(3, 9, blend);
-    skyDome.material.uniforms.rayleigh.value = THREE.MathUtils.lerp(2.8, 0.7, blend);
+    skyDome.material.uniforms.rayleigh.value = THREE.MathUtils.lerp(2.8, 1.2, blend);
     skyDome.material.uniforms.mieCoefficient.value = THREE.MathUtils.lerp(0.003, 0.015, blend);
-    skyDome.material.uniforms.sunPosition.value.set(-0.45, THREE.MathUtils.lerp(0.8, 0.42, blend), 0.45);
+    skyDome.material.uniforms.sunPosition.value.set(-0.45, THREE.MathUtils.lerp(0.8, 0.42, blend), 0.45).multiplyScalar(450000);
+    skyDome.material.uniforms.cloudCoverage.value = THREE.MathUtils.lerp(.3, .04, blend);
     hemi.color.setHex(blend > 0.5 ? 0xf6dfba : 0xd5e6ff);
     hemi.groundColor.setHex(blend > 0.5 ? 0x9c794b : 0x627b78);
     sun.intensity = THREE.MathUtils.lerp(2.2, 3.6, blend);
@@ -2155,13 +2165,16 @@ async function boot() {
             pixelRatio: renderer.getPixelRatio(),
             shadows: renderer.shadowMap.enabled,
             exposure: renderer.toneMappingExposure,
+            textures: renderer.info.memory.textures,
+            triangles: renderer.info.render.triangles,
+            lightProbe: scene.environment === reflections.gdansk ? "gdansk" : "riyadh",
             fov: camera.fov,
           },
           collected: save.collected.length,
         };
       },
       travel,
-      get destinations() { return destinations.map(d => ({ ...d })); },
+      get destinations() { return destinations.map(d => ({ ...d, ...(d.marker ? { marker: { ...d.marker } } : {}) })); },
     },
   });
   requestAnimationFrame(frame);

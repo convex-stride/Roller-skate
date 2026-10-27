@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { destinations } from "../src/destinations";
+import { destinations, destinationNear } from "../src/destinations";
+import { landmarks, landmarkAt } from "../src/city-profile";
 import { NavigationMap } from "../src/navigation";
 describe("selectable map destinations", () => {
   it("exposes all 128 quests and the parks, races and landmarks as named destinations", () => {
@@ -16,5 +17,14 @@ describe("selectable map destinations", () => {
     map.cityFocus = "riyadh"; expect(map.mapPoint(canvas, 300, 400)).toEqual({ x: 1000, z: 0 });
     const scale = map.largeScale(canvas), point = map.mapPoint(canvas, 300 + 100 * scale * 400 / 900, 400 + 200 * scale * 400 / 900);
     expect(point.x).toBeCloseTo(1100); expect(point.z).toBeCloseTo(200);
+  });
+  it("selects safe landmark viewpoints from the pins drawn on the buildings", () => {
+    for (const l of landmarks) {
+      const destination = destinationNear(l.x, l.z, 12)!;
+      expect(destination.id).toBe(`landmark:${l.id}`);
+      expect({ x: destination.x, z: destination.z }).toEqual(l.spawn);
+      expect(landmarkAt(destination.x, destination.z)).toBeUndefined();
+    }
+    expect(destinationNear(0, 2000, 12)).toBeUndefined();
   });
 });
