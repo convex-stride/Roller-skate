@@ -29,7 +29,7 @@ export class Companion {
       const angle = this.player.heading + Math.PI / 2 + n * Math.PI / 6;
       const x = p.x + Math.sin(angle) * radius, z = p.z + Math.cos(angle) * radius;
       if (!clearGround(x, z, 0.8)) continue;
-      const hit = this.world.castRay(new RAPIER.Ray({ x, y: p.y + 3, z }, { x: 0, y: -1, z: 0 }), 25, true, undefined, undefined, undefined, this.player.body, collider => !this.skater || collider.parent()?.handle !== this.skater.body.handle);
+      const hit = this.world.castRay(new RAPIER.Ray({ x, y: p.y + 3, z }, { x: 0, y: -1, z: 0 }), 25, true, undefined, undefined, undefined, this.player.body, collider => !collider.parent()?.isDynamic());
       if (!hit || p.y + 3 - hit.timeOfImpact > p.y + 1) continue;
       this.dismiss(); this.skater = new Skater(this.world, x, z); this.spawnId++;
       this.skater.body.setTranslation({ x, y: p.y + 3 - hit.timeOfImpact + 0.88, z }, true);
@@ -107,7 +107,7 @@ export class Companion {
   visual(time: number): CrowdPerson | null {
     if (!this.skater || this.pausedForRace) return null;
     const s = this.skater, p = s.body.translation(), player = this.player.body.translation();
-    return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset + s.figure.rotation + (s.switchStance ? Math.PI : 0), figure: s.figure.view, airPitch: s.airPitch + s.landingPitchOffset, airRoll: s.airRoll + s.landingRollOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
+    return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset + s.figure.rotation + (s.switchStance ? Math.PI : 0), figure: s.figure.view, flipKind: s.flipKind, airPitch: s.airPitch + s.landingPitchOffset, airRoll: s.airRoll + s.landingRollOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
   }
   get state() { const s = this.skater; return { active: this.active, mode: this.mode, message: this.message, position: s ? { ...s.body.translation() } : null, speed: s?.speed ?? 0, surface: s?.surface ?? null, figure: s?.figure.view ?? null, jumps: s?.jumpCount ?? 0, routePoints: this.route.length, racing: this.pausedForRace }; }
 }

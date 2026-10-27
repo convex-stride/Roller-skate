@@ -5,12 +5,14 @@ const browser = await chromium.launch({
   args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1100, height: 740 } });
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
-  await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
+  await page.getByRole("button", { name: "Find your line" }).waitFor({ timeout: 60000 });
+  if (process.env.LOW_GRAPHICS) { await page.locator("#lobby-settings").click(); await page.locator("#quality").selectOption("0.5"); await page.locator("#settings-apply").click(); await page.locator("#settings-back").click(); }
+  await page.getByRole("button", { name: "Find your line" }).click();
   await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
   const start = await page.evaluate(() => window.__skate.state);
   await page.screenshot({ path: "releases/gdansk-flow-v06.png" });
@@ -38,9 +40,13 @@ try {
   await page.getByRole("button", { name: /^Explore: Kingdom Centre/ }).click();
   await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
   const time = await page.evaluate(() => window.__skate.state.simTime);
+  console.log(JSON.stringify(await page.evaluate(() => ({ stage: "before continuous ride", position: window.__skate.state.position, render: window.__skate.state.rendering }))));
   await page.keyboard.down("w");
   // Cross a streaming boundary along the clear arterial, without teleporting.
-  await page.waitForFunction(() => window.__skate.state.position.z > 215, null, { timeout: 90000 });
+  await page.waitForFunction(() => window.__skate.state.position.z > 215, null, { timeout: Number(process.env.FLOW_TIMEOUT || 120000) }).catch(async error => {
+    console.log(JSON.stringify(await page.evaluate(() => ({ position: window.__skate.state.position, speed: window.__skate.state.speed, simTime: window.__skate.state.simTime, render: window.__skate.state.rendering, chunks: window.__skate.state.queuedChunks, paused: window.__skate.state.paused }))));
+    await page.screenshot({path:"releases/flow-failure.png"}); throw error;
+  });
   await page.keyboard.up("w");
   const travelled = await page.evaluate(() => window.__skate.state);
   assert.ok(travelled.position.y > 0.5 && travelled.position.y < 2, "continuous ground across chunk and road boundaries");

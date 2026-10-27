@@ -7,7 +7,8 @@ import { CrowdDirector, type CrowdPerson, type CrowdPlayer } from "./crowd";
 import { solve } from "./rider";
 import { RAPIER } from "./physics";
 import { iceAt } from "./ice-rinks";
-import { figurePose } from "./figure-skating";
+import { crowdDetailBudget } from "./render-budget";
+import { aerialPose, figurePose } from "./figure-skating";
 import { createSkateHelmet, attachProtectivePads, helmetShellGeometry, helmetLinerGeometry, padGeometry, FAIR_SKIN_TONES } from "./safety-gear";
 
 const colors = [0xd58759, 0x799fb1, 0xb6a0bb, 0x71865d, 0xe0c271, 0x9ab1a2, 0xc27170, 0xd9d2bd];
@@ -55,7 +56,8 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   for (let i = 0; i < iceBootPosition.count; i++) { const c = new THREE.Color(iceBootPosition.getY(i) < .105 ? 0xc8dce2 : 0x283c40); iceBootColors.set([c.r, c.g, c.b], i * 3); }
   iceSkateGeometry.setAttribute("color", new THREE.BufferAttribute(iceBootColors, 3));
   const iceBootMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .4, roughness: .35 });
-  const rigs = Array.from({ length: mobile ? 10 : 20 }, () => {
+  let detailBudget = crowdDetailBudget(mobile, "auto");
+  const rigs = Array.from({ length: mobile ? 6 : 12 }, () => {
     const group = new THREE.Group(), body = clone(source); group.add(body); scene.add(group);
     let mesh!: THREE.SkinnedMesh; body.traverse(o => { if (o instanceof THREE.SkinnedMesh) mesh = o; });
     mesh.material = bodyMaterial; mesh.frustumCulled = false; mesh.castShadow = !mobile;
@@ -134,6 +136,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     rig.body.position.y = skating ? p.crouching ? -0.03 : 0.07 : Math.abs(stride) * 0.025 * moving + 0.025;
     rig.body.rotation.x = p.crouching ? 0.15 : 0;
     const figure = p.figure && p.figure.mix > .01 ? figurePose(p.figure) : null;
+    const aerial = !figure && p.flipKind && !p.grabbing ? aerialPose(p.flipKind, p.airPitch || p.airRoll || 0) : null;
     rig.body.position.z = 0;
     if (figure) { rig.body.position.y = figure.bodyY + .95 * (1 - Math.cos(figure.pitch)); rig.body.position.z = -.95 * Math.sin(figure.pitch); rig.body.rotation.x = figure.pitch; }
     rig.group.updateMatrixWorld(true);
@@ -143,6 +146,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       const local = new THREE.Vector3(side * (0.12 + (skating ? Math.max(0, phase) * 0.22 * moving : 0)), 0.22 + (skating ? Math.max(0, -phase) * 0.08 : Math.max(0, phase) * 0.1) * moving,
         skating ? phase * 0.09 * moving : phase * 0.28 * moving);
       if (p.grabbing) local.set(side * 0.18, 0.48, 0.1);
+      if (aerial) local.lerp(new THREE.Vector3(aerial.feet[i].x, aerial.feet[i].y - .03, aerial.feet[i].z), aerial.blend);
       if (figure) local.set(figure.feet[i].x, figure.feet[i].y - .03, figure.feet[i].z);
       const target = rig.group.localToWorld(local.clone()); solve(leg[0], leg[1], leg[2], target, forward);
       rig.boots[i].group.position.copy(local).add(new THREE.Vector3(0, -0.22, 0));
@@ -157,6 +161,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       if (p.action === "phone" && i === 0) hand.set(0.12, 1.47, 0.16);
       if (p.grabbing && i === 0) hand.set(0.2, 0.62, 0.15);
       if (p.action === "wave" || p.action === "cheer" || (p.following && p.reaction > 0)) hand.set(side * (0.35 + Math.sin(p.age * 7) * 0.09), 1.78, 0.03);
+      if (aerial) hand.lerp(new THREE.Vector3(aerial.hands[i].x, aerial.hands[i].y, aerial.hands[i].z), aerial.blend);
       if (figure) hand.set(figure.hands[i].x, figure.hands[i].y, figure.hands[i].z);
       solve(arm[0], arm[1], arm[2], rig.group.localToWorld(hand.clone()), forward.clone().negate());
       if (i === 0) { rig.phone.position.copy(hand); rig.phone.position.z += 0.025; rig.cup.position.copy(hand); rig.cup.position.y += 0.035; }
@@ -170,6 +175,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   }
   return {
     director,
+    setQuality(quality: string) { detailBudget = crowdDetailBudget(mobile, quality); },
     update(time: number, player: CrowdPlayer, racers: CrowdPerson[] = []) {
       const dt = Math.max(0, Math.min(0.15, time - previousTime)); previousTime = time; simulationAccumulator += dt;
       if (!visible.length || simulationAccumulator >= 0.1) {
@@ -182,12 +188,18 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
         const turn = Math.atan2(Math.sin(p.heading - old.heading), Math.cos(p.heading - old.heading));
         return { ...p, x: old.x + (p.x - old.x) * blend, z: old.z + (p.z - old.z) * blend, phase: old.phase + (p.phase - old.phase) * blend, heading: old.heading + turn * blend };
       });
-      const detailed = blended.filter(p => p.distance < 45).slice(0, rigs.length);
+      const oldIds = new Set(rigs.filter(r => r.group.visible).map(r => r.assigned));
+      const detailed = blended.filter(p => p.name === "Taqee" && p.distance < 45 || p.distance < detailBudget.radius + (oldIds.has(p.id) ? 3 : 0)).slice(0, detailBudget.count);
       const assigned = new Set(detailed.map(p => p.id));
-      rigs.forEach((rig, i) => { if (detailed[i]) animateRig(rig, detailed[i], player); else rig.group.visible = false; });
+      const remaining = [...detailed];
+      for (const rig of rigs) {
+        const index = remaining.findIndex(p => p.id === rig.assigned);
+        if (index >= 0) animateRig(rig, remaining.splice(index, 1)[0], player); else rig.group.visible = false;
+      }
+      for (const person of remaining) { const rig = rigs.find(r => !r.group.visible)!; animateRig(rig, person, player); }
       blended.forEach((p, i) => {
         place(shadows, i, new THREE.Vector3(p.x, p.ground + 0.012, p.z), [1, 1, 1], p.heading);
-        if (assigned.has(p.id)) { torso.setMatrixAt(i, zero); heads.setMatrixAt(i, zero); caps.setMatrixAt(i, zero); liners.setMatrixAt(i, zero); for (let n = 0; n < 8; n++) limbs.setMatrixAt(i * 8 + n, zero); for (let n = 0; n < 2; n++) { shoes.setMatrixAt(i * 2 + n, zero); kneePads.setMatrixAt(i * 2 + n, zero); elbowPads.setMatrixAt(i * 2 + n, zero); wristPads.setMatrixAt(i * 2 + n, zero); } return; }
+        if (assigned.has(p.id)) { torso.setMatrixAt(i, zero); heads.setMatrixAt(i, zero); caps.setMatrixAt(i, zero); liners.setMatrixAt(i, zero); for (let n = 0; n < 8; n++) limbs.setMatrixAt(i * 8 + n, zero); for (let n = 0; n < 2; n++) { shoes.setMatrixAt(i * 2 + n, zero); iceBlades.setMatrixAt(i * 2 + n, zero); kneePads.setMatrixAt(i * 2 + n, zero); elbowPads.setMatrixAt(i * 2 + n, zero); wristPads.setMatrixAt(i * 2 + n, zero); } return; }
         const color = new THREE.Color(colors[p.id % 8]), skin = new THREE.Color(skinColors[p.id % 6]);
         torso.setColorAt(i, color); heads.setColorAt(i, skin); caps.setColorAt(i, color);
         place(torso, i, point(p, 0, 1.14, 0), [1, 1, 0.66], p.heading);
@@ -214,7 +226,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       for (const m of [kneePads, elbowPads, wristPads]) m.count = blended.length * 2;
       for (const m of [torso, heads, caps, liners, limbs, shoes, iceBlades, kneePads, elbowPads, wristPads, shadows]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     },
-    get diagnostics() { const partnerRig = rigs.find(r => r.assigned === 21001 && r.group.visible); return { visible: visible.length, detailed: rigs.filter(r => r.group.visible).length, residents: director.people.length, reactions: director.reactions, yields: director.yields, following: director.follower?.name ?? null,
+    get diagnostics() { const partnerRig = rigs.find(r => r.assigned === 21001 && r.group.visible); return { visible: visible.length, detailBudget: detailBudget.count, detailed: rigs.filter(r => r.group.visible).length, residents: director.people.length, reactions: director.reactions, yields: director.yields, following: director.follower?.name ?? null,
       appearance: { partnerSkates: partnerRig ? partnerRig.boots[0].group.geometry === iceSkateGeometry ? "ice blades" : "inline wheels" : null, skinTone: "fair", skinPalette: [...skinColors], helmet: "vented skate helmet with chin straps", guards: ["knee", "elbow", "wrist"], appliesTo: "all residents, quest givers, racers and Taqee", detailedGuardMeshes: rigs.filter(r => r.group.visible).reduce((n, r) => n + r.guards.length, 0), distantGuardInstances: [kneePads, elbowPads, wristPads].reduce((n, m) => n + m.count, 0) },
       actions: visible.reduce((counts, p) => { counts[p.action] = (counts[p.action] || 0) + 1; return counts; }, {} as Record<string, number>),
       sample: visible.slice(0, 12).map(p => ({ id: p.id, x: p.x, z: p.z, role: p.role, action: p.action, speed: p.speed, traveled: p.traveled })) }; },

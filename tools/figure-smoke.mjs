@@ -25,7 +25,7 @@ try {
   await mkdir("releases",{recursive:true});
   const p=await browser.newPage({viewport:{width:1100,height:740}});watch(p);
   await p.goto(url);await lowGraphics(p);await p.getByRole("button",{name:"Find your line"}).click({timeout:90000});
-  const moves=[['upright','5'],['sit','6'],['camel','7'],['spiral','8'],['eagle','9'],['axel','0'],['salchow','l'],['toeloop','k']];
+  const moves=[['upright','5'],['sit','6'],['camel','7'],['spiral','8'],['eagle','9'],['axel','0'],['salchow','l'],['toeloop','k'],['loop','u'],['lutz','o'],['twizzle','y'],['bauer','-']];
   if (!process.env.SKIP_MOVES) for(const [id,key] of moves){await visit(p);await move(p,id,key);}
   for(const mode of ['spotlight','duet']){
     await visit(p);await p.locator('#ice-play').click();await p.locator('[data-ice-tab="games"]').click();await p.locator(`[data-ice-game="${mode}"]`).click();
@@ -46,11 +46,11 @@ try {
   assert.equal((await p.evaluate(()=>window.__skate.state.iceGame)).mode,'slalom');await p.screenshot({path:'releases/figure-neon-gates.png'});await p.close();
   const context=await browser.newContext({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:1});
   const phone=await context.newPage();watch(phone);await phone.goto(url);await lowGraphics(phone);await phone.getByRole('button',{name:'Find your line'}).tap({timeout:90000});await visit(phone,true);
-  await phone.getByRole('button',{name:'Figure skating moves',exact:true}).tap();assert.equal(await phone.locator('[data-figure]:visible').count(),8);
+  await phone.getByRole('button',{name:'Figure skating moves',exact:true}).tap();assert.equal(await phone.locator('[data-figure]:visible').count(),12);
   assert.equal(await phone.locator('[data-ice-game]:visible').count(),0);await phone.screenshot({path:'releases/figure-phone-menu.png'});await phone.locator('#ice-lab-close').tap();
   await move(phone,'camel',null,true);await visit(phone,true);await move(phone,'axel',null,true);
   await phone.setViewportSize({width:852,height:393});await phone.getByRole('button',{name:'Figure skating moves',exact:true}).tap();
   const bounds=await phone.locator('#ice-lab').boundingBox();assert.ok(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=852&&bounds.y+bounds.height<=393);assert.equal(await phone.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await phone.screenshot({path:'releases/figure-phone-landscape.png'});assert.deepEqual(errors,[]);
-  console.log('Eight keyboard moves, complete spotlight + Taqee duet, saved medals, neon gates, phone figure actions and portrait/landscape menus passed; no runtime/shader errors.');
+  console.log('Twelve keyboard moves, complete spotlight + Taqee duet, saved medals, neon gates, phone figure actions and portrait/landscape menus passed; no runtime/shader errors.');
 }finally{await browser.close();}

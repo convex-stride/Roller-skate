@@ -34,19 +34,19 @@ export function createIcePlayUI(callbacks: { move: (id: FigureAction) => void; g
     open,
     close() { panel.classList.add("hidden"); },
     get opened() { return !panel.classList.contains("hidden"); },
-    update(rink: IceRink | undefined, onIce: boolean, figure: FigureView, game: IceGame | null, records: IceRecords, paused: boolean) {
+    update(rink: IceRink | undefined, onIce: boolean, figure: FigureView, game: IceGame | null, records: IceRecords, paused: boolean, grounded = true, partnerBusy = false) {
       current = game;
       if (!rink || !onIce || paused) panel.classList.add("hidden");
-      panel.querySelectorAll<HTMLButtonElement>("[data-figure]").forEach(b => { b.disabled = !!figure.action || !onIce; });
+      panel.querySelectorAll<HTMLButtonElement>("[data-figure]").forEach(b => { b.disabled = !!figure.action || !onIce || !grounded || (game?.mode === "duet" && partnerBusy); });
       card.classList.toggle("hidden", !game || !rink || paused);
       if (game) {
         node("ice-run-kicker").textContent = game.rink.name;
         node("ice-run-title").textContent = game.title;
-        node("ice-run-clock").textContent = `${Math.max(0, Math.ceil(game.limit - game.elapsed))}s · ${game.stage}/${game.total} · ${game.score} pts`;
+        node("ice-run-clock").textContent = `${game.status === "playing" ? `${Math.max(0, Math.ceil(game.limit - game.elapsed))}s left` : `${game.elapsed.toFixed(1)}s elapsed`} · ${game.stage}/${game.total} · ${game.score} pts`;
         node("ice-run-goal").textContent = game.status === "playing" ? game.targetMove ? `Next: ${figureDefinition(game.targetMove).name}` : `Gate ${game.stage + 1} / 8` : game.status === "won" ? `${game.medal!.toUpperCase()} MEDAL` : "TRY ANOTHER LINE";
         node("ice-run-detail").textContent = figure.action ? figure.message : game.message || (game.mode === "duet" ? "Stay close. Both skaters must finish the matching element." : game.mode === "slalom" ? "Follow the gold gate. Use gentle turns on the ice." : "Complete each element. Clean entries earn extra points.");
         const next = node("ice-run-next") as HTMLButtonElement;
-        next.hidden = !game.targetMove; next.disabled = !!figure.action; if (game.targetMove) next.textContent = `Do ${figureDefinition(game.targetMove).name}`;
+        next.hidden = !game.targetMove; next.disabled = !!figure.action || !grounded || (game.mode === "duet" && partnerBusy); if (game.targetMove) next.textContent = `Do ${figureDefinition(game.targetMove).name}`;
         node("ice-run-retry").hidden = game.status === "playing";
         node("ice-run-partner").hidden = game.mode !== "duet" || game.status !== "playing";
       }

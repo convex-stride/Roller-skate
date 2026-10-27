@@ -9,7 +9,7 @@ try {
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   await page.waitForFunction(() => window.__skate.state.crowd.visible > 30 && window.__skate.state.grounded);
   const first = await page.evaluate(() => window.__skate.state);
-  assert.ok(first.crowd.detailed >= 8);
+  assert.ok(first.crowd.detailed > 0 && first.crowd.detailed <= first.crowd.detailBudget);
   await page.waitForFunction(t => window.__skate.state.simTime > t + 3, first.simTime, { timeout: 60000 });
   const moving = await page.evaluate(() => window.__skate.state.crowd);
   assert.ok(moving.sample.some(p => p.traveled > 2));

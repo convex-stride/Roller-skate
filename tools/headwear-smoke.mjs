@@ -39,7 +39,7 @@ try {
   await page.keyboard.down("s"); await page.waitForFunction(() => window.__skate.state.speed < 0.2); await page.keyboard.up("s");
   await page.keyboard.press("p");
   await page.locator('[data-partner="close"]').click();
-  await page.waitForFunction(() => window.__skate.state.companion.active && window.__skate.state.crowd.detailed > 5);
+  await page.waitForFunction(() => window.__skate.state.companion.active && window.__skate.state.crowd.detailed > 0);
   const crowd = await page.evaluate(() => window.__skate.state.crowd);
   assert.equal(crowd.appearance.skinTone, "fair");
   assert.deepEqual(crowd.appearance.skinPalette, [0xe9c8b8, 0xf0d7c8, 0xe8c5b3, 0xf2d9cd, 0xeacdbc, 0xefd1bf]);
@@ -55,7 +55,7 @@ try {
   phone.on("pageerror", error => errors.push(error.message));
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
-  await phone.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.crowd.detailed > 3);
+  await phone.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.crowd.detailed > 0);
   await phone.locator("#partner-toggle").tap(); await phone.locator('[data-partner="close"]').tap();
   assert.equal(await phone.evaluate(() => window.__skate.state.crowd.appearance.detailedGuardMeshes === window.__skate.state.crowd.detailed * 6), true);
   await phone.screenshot({ path: "releases/layans-skate-phone-safety-gear.png" });

@@ -25,11 +25,14 @@ export class IceGame {
   private partnerGeneration = -1;
   private seenPlayer: number; private seenPartner: number;
   private playerMatch: number | null = null; private partnerMatch: number | null = null;
-  constructor(readonly rink: IceRink, readonly mode: IceGameMode, initialPlayer = 0, initialPartner = 0) {
+  constructor(readonly rink: IceRink, readonly mode: IceGameMode, initialPlayer = 0, initialPartner = 0, attempt = 0) {
     this.seenPlayer = initialPlayer; this.seenPartner = initialPartner;
     const variants: FigureAction[][] = [["upright", "spiral", "axel", "camel"], ["sit", "eagle", "salchow", "upright"], ["camel", "spiral", "toeloop", "sit"]];
-    this.sequence = mode === "duet" ? ["upright", "toeloop", "spiral"] : variants[iceRinks.findIndex(r => r.id === rink.id) % variants.length];
-    this.gates = Array.from({ length: 8 }, (_, i) => { const a = (i + 1) * Math.PI / 4; return { x: rink.x + Math.sin(a) * 9, z: rink.z - Math.cos(a) * 18 }; });
+    const venue = Math.max(0, iceRinks.findIndex(r => r.id === rink.id));
+    const duets: FigureAction[][] = [["upright", "toeloop", "spiral"], ["sit", "loop", "bauer"], ["camel", "lutz", "eagle"], ["twizzle", "salchow", "upright"]];
+    variants.push(["twizzle", "bauer", "lutz", "sit"], ["camel", "loop", "spiral", "upright"], ["sit", "twizzle", "axel", "bauer"]);
+    this.sequence = mode === "duet" ? duets[(venue + attempt) % duets.length] : variants[(venue + attempt) % variants.length];
+    this.gates = Array.from({ length: 8 }, (_, i) => { const a = (i + 1) * Math.PI / 4, variation = (venue + attempt) % 3; return { x: rink.x + Math.sin(a) * (variation === 1 ? 7 : 9), z: rink.z - Math.cos(a) * (variation === 2 ? 15 : 18) }; });
   }
   get total() { return this.mode === "slalom" ? this.gates.length : this.sequence.length; }
   get targetMove() { return this.status === "playing" && this.mode !== "slalom" ? this.sequence[this.stage] ?? null : null; }

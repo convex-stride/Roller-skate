@@ -201,5 +201,9 @@ export function bindPreferences(
       tabs.find((t) => t.getAttribute("aria-selected") === "true")?.focus();
     },
     close: discardAndBack,
+    setNight(enabled: boolean) {
+      committed = { ...committed, nightMode: enabled }; draft = { ...committed };
+      const stored = storePreferences(committed); sync(); preview({ ...committed }); return stored;
+    },
   };
 }

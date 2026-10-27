@@ -1,6 +1,7 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { surfaceAt } from "./city-profile";
 import { isFlip, isFigure, type FlipAction, type TrickAction } from "./input";
+import { StyleChain } from "./style-chain";
 import { FigureSkating, figureDefinition } from "./figure-skating";
 export { RAPIER };
 export const STEP = 1 / 60;
@@ -85,6 +86,7 @@ export class Skater {
   landingYawOffset = 0;
   surface = "ASPHALT";
   figure = new FigureSkating();
+  style = new StyleChain();
   private scoredFigure = 0;
   manualActive = false;
   slideAmount = 0;
@@ -123,7 +125,7 @@ export class Skater {
   }
   get grabbing() { return this.grabTimer > 0 && !this.grounded; }
   reset(x: number, z: number) {
-    this.figure.reset();
+    this.figure.reset(); this.style.reset();
     this.body.setTranslation({ x, y: 1.1, z }, true);
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     this.grinding = null;
@@ -163,8 +165,8 @@ export class Skater {
     this.manualTime = 0;
     this.lastTrick = "Back on your wheels";
   }
-  addTrick(name: string, points: number) {
-    this.combo += points;
+  addTrick(name: string, points: number, key: string | null = name) {
+    this.combo += key === null ? points : this.style.award(key, points);
     this.multiplier = Math.min(5, this.multiplier + 0.25);
     this.lastTrick = name;
     this.comboTimer = 2;
@@ -173,7 +175,7 @@ export class Skater {
     return this.grabPose === "tweak" ? "Mute tweak" : this.grabPose === "star" ? "Spread eagle" : this.grabPose === "stale" ? "Stalefish grab" : "Safety grab";
   }
   bank() {
-    const earned = Math.round(this.combo * this.multiplier);
+    const earned = Math.round(this.combo * this.multiplier) + this.style.bank();
     this.banked += earned;
     this.combo = 0;
     this.multiplier = 1;
@@ -196,7 +198,7 @@ export class Skater {
     }
     const legacyTricks = c.tricks.filter(a => !isFigure(a));
     const figureKind = this.figure.action ? figureDefinition(this.figure.action).kind : null;
-    const figureIntent = this.figure.step({ x: p.x, z: p.z, speed: this.speed, ice: this.surface === "ICE", grounded: this.grounded, cancel: c.brake > .5 || legacyTricks.length > 0 || (c.jumpPressed && figureKind !== "jump") }, dt);
+    const figureIntent = this.figure.step({ x: p.x, z: p.z, speed: this.speed, ice: this.surface === "ICE", grounded: this.grounded, cancel: c.brake > .5 || legacyTricks.length > 0 || c.jumpPressed }, dt);
     if (figureKind && !this.figure.action) this.liveTrick = "";
     if (this.figure.action || c.tricks.some(isFigure)) {
       c = { ...c, tricks: legacyTricks, manual: false, slide: false };
@@ -245,6 +247,7 @@ export class Skater {
         undefined,
         this.collider,
         this.body,
+        collider => !collider.parent()?.isDynamic(),
       );
       if (hit && hit.normal.y > 0.65 && hit.timeOfImpact < 0.94)
         contacts.push(hit);
@@ -316,6 +319,7 @@ export class Skater {
         this.grinding = null;
         this.railCooldown = 0.5;
         this.combo = 0;
+        this.style.reset();
         this.multiplier = 1;
         this.lastTrick = "Bail · regain your balance";
         this.lastLandingQuality = "bail";
@@ -330,7 +334,7 @@ export class Skater {
           this.lastTrick = "Rough landing";
         }
         if (turns) {
-          this.addTrick(`${turns * 180}° spin`, turns * 180);
+          if (!figureJump) this.addTrick(`${turns * 180}° spin`, turns * 180);
           landedNames.push(`${turns * 180}° spin`);
           if (turns % 2) this.switchStance = !this.switchStance;
         }
@@ -338,7 +342,7 @@ export class Skater {
           const name = `${flips > 1 ? "Double " : ""}${this.flipKind === "frontflip" ? "frontflip" : this.flipKind === "backflip" ? "backflip" : this.flipKind === "leftflip" ? "left side flip" : "right side flip"}`;
           this.addTrick(name, flips * 450); landedNames.push(name);
           this.flipLandings++; this.lastLandedFlip = this.flipKind;
-          if (alignmentError < 0.18 && flipError < 0.18 && this.lastImpact > -9) { this.addTrick("Perfect landing", 75); this.lastLandingQuality = "perfect"; }
+          if (alignmentError < 0.18 && flipError < 0.18 && this.lastImpact > -9) { this.addTrick("Perfect landing", 75, null); this.lastLandingQuality = "perfect"; }
         }
         if (this.grabPerformed) { this.addTrick(this.poseName, 180); landedNames.push(this.poseName); }
         if (flips) this.lastTrick = `${landedNames.join(" + ")} · ${this.lastLandingQuality === "perfect" ? "perfect landing" : this.lastLandingQuality === "rough" ? "rough landing" : "landed"}`;
@@ -535,7 +539,7 @@ export class Skater {
     }
     if (this.figure.lastResult && this.figure.lastResult.id > this.scoredFigure) {
       this.scoredFigure = this.figure.lastResult.id;
-      this.addTrick(`${this.figure.lastResult.name} · ${this.figure.lastResult.quality}`, this.figure.lastResult.points);
+      this.addTrick(`${this.figure.lastResult.name} · ${this.figure.lastResult.quality}`, this.figure.lastResult.points, `figure:${this.figure.lastResult.action}`);
     }
     if (this.figure.action) { this.liveTrick = this.figure.message.toUpperCase(); this.comboTimer = 2; }
     if (!c.manual) this.manualNeedsRelease = false;

@@ -32,12 +32,12 @@ describe("figure skating moves", () => {
 });
 
 describe("Taqee's mirror duet", () => {
-  it("physically completes all three matching elements with Layan", async () => {
+  it.each([0,1,2,3])("physically completes all matching elements with Layan in duet variant %s", async attempt => {
     const { Companion } = await import("../src/companion");
     const { IceGame } = await import("../src/ice-games");
     const { world, s, tick } = setup(); const partner = new Companion(world, s);
     expect(partner.call()).toBe(true); partner.command("pairs");
-    const game = new IceGame(iceRinks[0], "duet");
+    const game = new IceGame(iceRinks[0], "duet", 0, 0, attempt);
     function step(c: Controls) {
       s.tick(c, []); partner.tick(null); world.step();
       game.tick({ ...s.body.translation(), onIce: true, grounded: s.grounded, figure: s.figure.lastResult, partner: { ...partner.skater!.body.translation(), active: true, generation: partner.spawnId, figure: partner.skater!.figure.lastResult } }, STEP);

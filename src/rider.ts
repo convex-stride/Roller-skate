@@ -5,7 +5,7 @@ import modelUrl from "./assets/rider-base.glb?url";
 import type { Skater, Controls } from "./physics";
 import { createHijab } from "./headwear";
 import { createSkateHelmet, attachProtectivePads, FAIR_SKIN_TONES } from "./safety-gear";
-import { figurePose } from "./figure-skating";
+import { aerialPose, figurePose } from "./figure-skating";
 
 type Pose = { p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 };
 const up = new THREE.Vector3(0, 1, 0);
@@ -363,6 +363,7 @@ export async function createRider(outfit: number) {
       const tuck = tuckBlend,
         compression = cinematic ? 0 : s.landingCompression;
       const figure = !cinematic && s.figure.mix > .01 ? figurePose(s.figure.view) : null;
+      const aerial = !figure && s.flipKind && !s.grabbing ? aerialPose(s.flipKind, s.airPitch || s.airRoll, s.flipLandings) : null;
       const physicalPosition = s.body.translation();
       const floor = groundHeight(physicalPosition.x, physicalPosition.z);
       shadow.visible = floor !== null && !s.grinding;
@@ -411,6 +412,7 @@ export async function createRider(outfit: number) {
           desiredFoot.x = side * (s.grindStyle === "Royale grind" ? 0.045 : 0.09);
           desiredFoot.z = side * 0.13;
         }
+        if (aerial) desiredFoot.lerp(new THREE.Vector3(aerial.feet[i].x, aerial.feet[i].y, aerial.feet[i].z), aerial.blend);
         if (figure) desiredFoot.set(figure.feet[i].x, figure.feet[i].y, figure.feet[i].z);
         const groundPoint = group.localToWorld(
           new THREE.Vector3(desiredFoot.x, 0, desiredFoot.z),
@@ -451,6 +453,7 @@ export async function createRider(outfit: number) {
               0.05 + grabBlend * (s.grabPose === "stale" ? -0.35 : 0.2) + Math.sin(s.pushPhase + i * Math.PI) * 0.055 * s.pushStrength,
             ),
           );
+        if (aerial) arm.lerp(group.localToWorld(new THREE.Vector3(aerial.hands[i].x, aerial.hands[i].y, aerial.hands[i].z)), aerial.blend);
         if (figure) arm.copy(group.localToWorld(new THREE.Vector3(figure.hands[i].x, figure.hands[i].y, figure.hands[i].z)));
         solve(a[0], a[1], a[2], arm, forward.clone().negate());
       });

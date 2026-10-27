@@ -18,6 +18,7 @@ export type CrowdPerson = CrowdPoint & {
   airRoll?: number;
   grabbing?: boolean;
   figure?: FigureView;
+  flipKind?: import("./input").FlipAction | null;
 };
 export type CrowdPlayer = CrowdPoint & { heading: number; speed: number; score: number };
 type Probe = (x: number, z: number, fromX: number, fromZ: number) => number | null;

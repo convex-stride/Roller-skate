@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { cityReflections, balticFoliage } from "./world-art";
+import { batchGroup } from "./instance-batches";
+import { LoveFireworks } from "./fireworks";
 import { NightLighting, nightGeometries } from "./night";
 import { iceRinks, iceAt, iceVenueAt, rinkArrival, rinkEntrance } from "./ice-rinks";
 import { buildIceArenas } from "./ice-scene";
@@ -68,7 +70,7 @@ app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></c
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.21 / FIGURE FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.22 / FIND YOUR FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
@@ -223,6 +225,7 @@ async function boot() {
   sun.shadow.normalBias = .035;
   scene.add(sun, sun.target);
   const nightLighting = new NightLighting(scene, mobileDevice);
+  const fireworks = new LoveFireworks(scene, mobileDevice);
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   world.timestep = STEP;
   const initialStart = cityStarts.gdansk;
@@ -440,58 +443,38 @@ async function boot() {
   }
   const chunks = new Map<string, THREE.Group>();
   function batchInstances(g: THREE.Group, allGeometry = false) {
-    const batches = new Map<string, THREE.Mesh[]>();
-    for (const child of [...g.children])
-      if (
-        child instanceof THREE.Mesh &&
-        child.visible &&
-        (allGeometry || sharedGeometries.includes(child.geometry))
-      ) {
-        const key = `${child.geometry.uuid}-${(child.material as THREE.Material).uuid}`;
-        const list = batches.get(key) || [];
-        list.push(child);
-        batches.set(key, list);
-      }
-    for (const list of batches.values()) {
-      const instanced = new THREE.InstancedMesh(
-        list[0].geometry,
-        list[0].material,
-        list.length,
-      );
-      list.forEach((m, i) => {
-        m.updateMatrix();
-        instanced.setMatrixAt(i, m.matrix);
-        g.remove(m);
-      });
-      instanced.castShadow = true;
-      instanced.receiveShadow = true;
-      instanced.computeBoundingSphere();
-      g.add(instanced);
-    }
+    batchGroup(g, sharedGeometries, allGeometry);
   }
   function createChunk(ix: number, iz: number, city: City) {
     const cx = centers[city] - 700 + ix * 200,
       cz = -700 + iz * 200;
     const g = new THREE.Group();
-    scene.add(g);
-    const kit = { box, cylinder, tree, rail, material };
-    streetDetails(g, cx, cz, city, kit);
-    decorateDistrict(g, cx, cz, city, kit, (group, p) => {
-      const data = streetBankGeometry(p), key = `${p.w}:${p.d}:${p.h}`;
-      if (!streetBankMeshes.has(key)) {
-        const local = streetBankGeometry({ ...p, x: 0, z: 0 }), geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(local.vertices, 3)); geometry.setIndex(new THREE.BufferAttribute(local.indices, 1)); geometry.computeVertexNormals();
-        streetBankMeshes.set(key, geometry); sharedGeometries.push(geometry);
+    g.visible = false; g.userData.streamWanted = true; scene.add(g);
+    function* build() {
+      const kit = { box, cylinder, tree, rail, material };
+      streetDetails(g, cx, cz, city, kit);
+      yield;
+      decorateDistrict(g, cx, cz, city, kit, (group, p) => {
+        const data = streetBankGeometry(p), key = `${p.w}:${p.d}:${p.h}`;
+        if (!streetBankMeshes.has(key)) {
+          const local = streetBankGeometry({ ...p, x: 0, z: 0 }), geometry = new THREE.BufferGeometry();
+          geometry.setAttribute("position", new THREE.BufferAttribute(local.vertices, 3)); geometry.setIndex(new THREE.BufferAttribute(local.indices, 1)); geometry.computeVertexNormals();
+          streetBankMeshes.set(key, geometry); sharedGeometries.push(geometry);
+        }
+        const bank = new THREE.Mesh(streetBankMeshes.get(key)!, material(city === "gdansk" ? 0x809c9f : 0xb7a387)); bank.position.set(p.x, 0, p.z); bank.castShadow = true; bank.receiveShadow = true; group.add(bank);
+        const collider = world.createCollider(RAPIER.ColliderDesc.trimesh(data.vertices, data.indices).setFriction(0.05));
+        const colliders = collidersByGroup.get(group) ?? []; colliders.push(collider); collidersByGroup.set(group, colliders);
+      });
+      yield;
+      for (const building of buildings(cx, cz, city)) {
+        if (building.style === "modern") modernArchitecture(g, building, kit);
+        else architecture(g, building, city, kit);
+        yield;
       }
-      const bank = new THREE.Mesh(streetBankMeshes.get(key)!, material(city === "gdansk" ? 0x809c9f : 0xb7a387)); bank.position.set(p.x, 0, p.z); bank.castShadow = true; bank.receiveShadow = true; group.add(bank);
-      const collider = world.createCollider(RAPIER.ColliderDesc.trimesh(data.vertices, data.indices).setFriction(0.05));
-      const colliders = collidersByGroup.get(group) ?? []; colliders.push(collider); collidersByGroup.set(group, colliders);
-    });
-    for (const building of buildings(cx, cz, city))
-      if (building.style === "modern") modernArchitecture(g, building, kit);
-      else architecture(g, building, city, kit);
-    batchInstances(g);
-    return g;
+      batchInstances(g);
+      g.visible = g.userData.streamWanted;
+    }
+    return { group: g, build: build() };
   }
   const link = new THREE.Group();
   scene.add(link);
@@ -508,6 +491,7 @@ async function boot() {
   const landmarks = new THREE.Group();
   scene.add(landmarks);
   buildCityLandmarks(landmarks, { box, cylinder, tree, rail, material });
+  let pendingChunk: { key: string; build: Generator } | null = null;
   let lastChunk = "";
   let chunkQueue: { key: string; x: number; z: number; city: City; distance: number }[] = [];
   function stream(force = false) {
@@ -530,7 +514,8 @@ async function boot() {
     }
     chunkQueue.sort((a, b) => a.distance - b.distance);
     for (const [k, g] of chunks) {
-      g.visible = needed.has(k);
+      g.userData.streamWanted = needed.has(k);
+      g.visible = needed.has(k) && pendingChunk?.key !== k;
       const [city, ix, iz] = k.split("-");
       const distant = Math.abs(centers[city as City] - 700 + Number(ix) * 200 - p.x) > 520 || Math.abs(-700 + Number(iz) * 200 - p.z) > 520;
       if (!needed.has(k) && distant) {
@@ -548,11 +533,21 @@ async function boot() {
       }
     }
     // Teleports load their immediate collision neighborhood before simulation resumes.
-    if (force) for (let i = 0; i < 4; i++) buildNextChunk();
+    if (force) { if (pendingChunk) buildNextChunk(true); for (let i = 0; i < 4; i++) buildNextChunk(true); }
   }
-  function buildNextChunk() {
-    const next = chunkQueue.shift();
-    if (next) chunks.set(next.key, createChunk(next.x, next.z, next.city));
+  function buildNextChunk(immediate = false) {
+    if (pendingChunk && !chunks.has(pendingChunk.key)) pendingChunk = null;
+    if (!pendingChunk) {
+      const next = chunkQueue.shift(); if (!next) return;
+      const chunk = createChunk(next.x, next.z, next.city); chunks.set(next.key, chunk.group);
+      pendingChunk = { key: next.key, build: chunk.build };
+    }
+    const deadline = performance.now() + 2;
+    let steps = 0;
+    do {
+      if (pendingChunk.build.next().done) { pendingChunk = null; break; }
+      steps++;
+    } while (immediate || (steps < 8 && performance.now() < deadline));
   }
   stream(true);
   const training = new THREE.Group();
@@ -573,7 +568,7 @@ async function boot() {
   const crowd = await createCrowd(scene, world, skater.body, mobileDevice);
   const companion = new Companion(world, skater);
   const iceEffects = createIcePlayScene(scene);
-  let iceRun: IceGame | null = null, iceAwarded = false;
+  let iceRun: IceGame | null = null, iceAwarded = false, iceAttempt = 0;
   const emptyIceRecords: IceRecords = {};
   let restorePartner = !!save.partnerActive;
   const partnerLabelCanvas = document.createElement("canvas"); partnerLabelCanvas.width = 256; partnerLabelCanvas.height = 64;
@@ -839,6 +834,7 @@ async function boot() {
     const p = skater.body.translation();
     if (!iceAt(p.x, p.z) || !skater.grounded) { toast("Start figure moves with your blades on the ice."); return; }
     if (skater.figure.action) return;
+    if (iceRun?.status === "playing" && iceRun.mode === "duet" && companion.skater?.figure.action) { toast("Let Taqee finish this element, then skate the next one together."); return; }
     actions.trick(id); iceUI.close(); canvas.focus();
   }
   function startIceGame(mode: IceGameMode) {
@@ -846,7 +842,7 @@ async function boot() {
     if (!rink) { toast("Enter the ice to start an arena game."); return; }
     visitRink(rink.id);
     if (mode === "duet") { companion.call(); companion.command("pairs"); save.partnerActive = companion.active; persist(); }
-    iceRun = new IceGame(rink, mode, skater.figure.completed, companion.skater?.figure.completed ?? 0); iceAwarded = false;
+    iceRun = new IceGame(rink, mode, skater.figure.completed, companion.skater?.figure.completed ?? 0, iceAttempt++); iceAwarded = false;
     el("partner-panel").classList.add("hidden");
     toast(`${iceRun.title} · ${mode === "slalom" ? "Follow the gold gates" : "Use Perform element to build your routine"}`);
   }
@@ -1320,6 +1316,8 @@ async function boot() {
   el("wardrobe-back").onclick = closeWardrobe;
   function applyPreferences(next: Preferences) {
     preferences = next;
+    el("pause-night").textContent = next.nightMode ? "Switch to day ☀" : "Switch to night ☾";
+    crowd.setQuality(next.quality);
     automaticQuality = next.quality === "auto";
     slowFrames = 0;
     renderer.setPixelRatio(
@@ -1358,6 +1356,7 @@ async function boot() {
   }
   el("lobby-settings").onclick = showSettings;
   el("pause-settings").onclick = showSettings;
+  el("pause-night").onclick = () => { const night = !preferences.nightMode; const stored = settingsUI.setNight(night); toast(`${night ? "Night · I LOVE YOU LAYAN fireworks" : "Daylight"}${stored ? " · saved" : " · this session"}`); };
   el("settings-controls").onclick = showHelp;
   el("fullscreen").onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -1410,8 +1409,8 @@ async function boot() {
     el("help").querySelector("p")!.textContent = "Use both thumbs: keep pushing with the stick while you jump and tap tricks. Rails catch automatically. The More tray has spread eagle, stalefish, crouch, manual, slide and rail assist. Ride opens a nearby challenge; Map lets you choose any stunt spot. Portrait and landscape both work.";
     el("help").querySelector("p")!.insertAdjacentText("beforeend", " Tap Backflip to hop and flip. More has front and side flips. Hold JUMP for height, then tap a flip twice for a double off a bank.");
   }
-  el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>I · Figure on phone</b>Ice moves, games and medals</div><div><b>5–9 · 0 / L / K</b>Spins & glides · Axel / Salchow / toe loop</div>");
-  el("help").querySelector("p")!.insertAdjacentText("beforeend", " On ice, open Figure or press I for eight assisted figure moves and three arena games. Taqee mirrors moves in pairs mode. Brake cancels an element. Arena medals use game scoring.");
+  el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>I · Figure on phone</b>12 ice moves, games and medals</div><div><b>5–9 · 0 / L / K</b>Spins & glides · Axel / Salchow / toe loop</div><div><b>U / O / Y / −</b>Loop / Lutz / twizzles / Ina Bauer</div>");
+  el("help").querySelector("p")!.insertAdjacentText("beforeend", " On ice, open Figure or press I for twelve assisted figure moves and three arena games. Taqee mirrors moves in pairs mode. Brake cancels an element. Arena medals use game scoring.");
   let lookPointer: number | null = null, pointerX = 0, pointerY = 0;
   let dragging = false,
     lookYaw = 0,
@@ -1445,7 +1444,7 @@ async function boot() {
       return;
     }
     if (
-      (e.target as HTMLElement).matches("input,select,button") &&
+      ((e.target as HTMLElement).closest("input,select,textarea,[contenteditable=true]") || ((e.target as HTMLElement).closest("button") && (paused || ["Enter", "Space", "Tab"].includes(e.code)))) &&
       e.code !== "Escape"
     )
       return;
@@ -1487,6 +1486,7 @@ async function boot() {
       )
     )
       e.preventDefault();
+    if ((e.target as HTMLElement).closest("button")) canvas.focus();
     keys.add(e.code);
     if (!e.repeat) {
       const figure = figureMoves.find(m => m.key === e.key.toUpperCase());
@@ -1827,12 +1827,14 @@ async function boot() {
     fps = 60;
   function frame(now: number) {
     requestAnimationFrame(frame);
-    const elapsed = Math.min((now - last) / 1000, 0.1);
+    const frameDelta = Math.max(0, (now - last) / 1000);
+    const elapsed = Math.min(frameDelta, 0.1);
     last = now;
     if (automaticQuality) {
       slowFrames = Math.max(0, slowFrames + (elapsed > 0.045 ? 1 : -0.4));
       if (slowFrames > 6) {
         automaticQuality = false;
+        crowd.setQuality("0.5");
         renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.5);
         renderer.shadowMap.enabled = false;
         renderer.setSize(innerWidth, innerHeight);
@@ -1940,7 +1942,7 @@ async function boot() {
     iceScene.update(p.x, p.z);
     const currentRink = iceVenueAt(p.x, p.z, 8), onIce = !!iceAt(p.x, p.z);
     const visibleIceRun = iceRun?.rink.id === currentRink?.id ? iceRun : null;
-    iceUI.update(currentRink, onIce, skater.figure.view, visibleIceRun, save.iceRecords ?? emptyIceRecords, paused);
+    iceUI.update(currentRink, onIce, skater.figure.view, visibleIceRun, save.iceRecords ?? emptyIceRecords, paused, skater.grounded, !!companion.skater?.figure.action);
     touch.setIce(onIce); iceEffects.update(iceRun, p, simTime, paused ? 0 : elapsed);
     el("ice-play").hidden = !onIce;
     el("ice-card").classList.toggle("hidden", !currentRink || paused || !!active || !!raceSession || !!visibleIceRun || iceUI.opened);
@@ -1996,6 +1998,7 @@ async function boot() {
           undefined,
           skater.collider,
           skater.body,
+          collider => !collider.parent()?.isDynamic(),
         );
         return hit ? origin.y - hit.timeOfImpact : null;
       },
@@ -2034,7 +2037,7 @@ async function boot() {
       if (skater.grounded || skater.grinding)
         cameraGroundY = THREE.MathUtils.damp(cameraGroundY, p.y, 9, elapsed);
       const followY = cameraGroundY + (p.y - cameraGroundY) * 0.35;
-      target.set(p.x, p.y + .65 + Math.max(0, -lookPitch) * 8, p.z);
+      target.set(p.x, followY + .65 + Math.max(0, -lookPitch) * 8, p.z);
       desired.set(
         p.x - Math.sin(yaw) * distance,
         followY + 1.65 + Math.max(-.2, lookPitch) * 2.5,
@@ -2048,7 +2051,7 @@ async function boot() {
       if (length > 0.001) {
         delta.divideScalar(length);
         const hit = world.castShape(target, { x: 0, y: 0, z: 0, w: 1 }, delta,
-          cameraShape, 0.02, length, true, undefined, undefined, skater.collider, skater.body);
+          cameraShape, 0.02, length, true, undefined, undefined, skater.collider, skater.body, collider => !collider.parent()?.isDynamic());
         if (hit) camera.position.copy(target).addScaledVector(delta, Math.max(0.05, hit.time_of_impact - 0.04));
       }
       camera.lookAt(target);
@@ -2067,6 +2070,7 @@ async function boot() {
     scene.environmentIntensity = night ? .7 : THREE.MathUtils.lerp(.48, .6, blend);
     skyDome.visible = !night;
     nightLighting.update(night, p, camera.position, [training, ...chunks.values()], elapsed);
+    fireworks.update(night, p, simTime, preferences.reducedMotion, Math.atan2(p.x - camera.position.x, p.z - camera.position.z));
     const sky = new THREE.Color(0x9dbdc4).lerp(
       new THREE.Color(0xd9c3a0),
       blend,
@@ -2153,7 +2157,7 @@ async function boot() {
         ? Math.round(skater.combo).toLocaleString()
         : "";
       el("multiplier").textContent = skater.combo
-        ? `×${skater.multiplier.toFixed(2)}`
+        ? `×${skater.multiplier.toFixed(2)} · ${skater.style.view.unique} styles${skater.style.view.bonus ? ` · +${skater.style.view.bonus} variety` : skater.style.view.freshness < 1 ? " · Mix it up!" : ""}`
         : "";
       el("trick").textContent = skater.liveTrick || (skater.combo ? skater.lastTrick : "");
       el("hint").innerHTML =
@@ -2166,7 +2170,7 @@ async function boot() {
           `<small>${active.activity.kind.toUpperCase()}</small><strong>${active.activity.district}</strong>${active.activity.kind === "jam" ? `${Math.ceil(90 - active.time)}s left · ${skater.banked - active.scoreStart} banked points` : `${active.time.toFixed(1)}s · gate ${active.gate + 1}/5`}`;
       }
       if (frames++ % 3 === 0) drawMap(el("minimap") as HTMLCanvasElement);
-      fps = THREE.MathUtils.lerp(fps, 1 / Math.max(0.001, elapsed), 0.1);
+      fps = THREE.MathUtils.lerp(fps, 1 / Math.max(0.001, frameDelta), 0.1);
       el("debug").textContent =
         `${Math.round(fps)} fps · ${renderer.info.render.calls} calls\n${chunks.size} chunks · ${Math.round(renderer.info.render.triangles / 1000)}k tris\nx ${p.x.toFixed(1)} z ${p.z.toFixed(1)} y ${p.y.toFixed(2)}\n${skater.grounded ? "grounded" : "airborne"} · ${speed.toFixed(2)} m/s`;
     }
@@ -2209,7 +2213,7 @@ async function boot() {
           companion: companion.state,
           rink: iceVenueAt(p.x, p.z) ? { id: iceVenueAt(p.x, p.z)!.id, onIce: !!iceAt(p.x, p.z) } : null,
           iceArenas: iceRinks.length,
-          figure: skater.figure.view, iceGame: iceRun?.view ?? null, iceRecords: { ...save.iceRecords },
+          style: skater.style.view, figure: skater.figure.view, iceGame: iceRun?.view ?? null, iceRecords: { ...save.iceRecords },
           position: { ...p },
           speed: skater.speed,
           grounded: skater.grounded,
@@ -2231,6 +2235,7 @@ async function boot() {
           partnerRaceResults: { ...(save.partnerRaceResults ?? {}) },
           touch: { enabled: touch.enabled, ...touch.state },
           cameraLook: { yaw: lookYaw, pitch: lookPitch },
+          cameraPosition: { ...camera.position },
           grindStyle: skater.grindStyle,
           riderVertices: avatar.vertexCount,
           appearance: avatar.appearance,
@@ -2261,7 +2266,7 @@ async function boot() {
           banked: skater.banked,
           simTime,
           heading: skater.heading,
-          queuedChunks: chunkQueue.length,
+          queuedChunks: chunkQueue.length + (pendingChunk ? 1 : 0),
           paused,
           preferences: { ...preferences },
           rendering: {
@@ -2273,7 +2278,7 @@ async function boot() {
             textures: renderer.info.memory.textures,
             triangles: renderer.info.render.triangles,
             lightProbe: scene.environment === reflections.gdansk || scene.environment === reflections.nightGdansk ? "gdansk" : "riyadh",
-            night: nightLighting.diagnostics,
+            night: nightLighting.diagnostics, fireworks: fireworks.diagnostics,
             fov: camera.fov,
           },
           collected: save.collected.length,

@@ -21,13 +21,25 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Figures.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.21.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Polish.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.22.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
 
+## Movement polish, variety and love fireworks
+
+Version 0.22 fixes gameplay input losing WASD after clicking a button, manual jumps overlapping assisted ice takeoffs, abrupt transitions into the next figure pose, twizzles unwinding after completion, and duplicate generic spin awards on named figure jumps. Duet controls wait for Taqee to finish before starting the next element. The completed-round clock now shows elapsed time.
+
+The follow camera ignores other riders as obstacles while retaining wall avoidance, and follows jump height more gently. Foot probes ignore other dynamic riders as ground. Shared instance batches are split into 200 m cells so offscreen scenery from the other city can be culled. City detail builds over several short steps instead of constructing a complete chunk during one moving frame, and appears once batched. Nearby detailed NPCs use quality budgets (desktop 4/8/12, phone 2/4/6 for Low/Balanced/High); surrounding residents continue their routines using instanced models. Automatic quality can reduce both resolution and NPC detail. These changes reduce workload and camera jolts; browser checks use software graphics and do not certify a frame rate on every device.
+
+**Four extra figure moves:** **U** single loop, **O** single Lutz, **Y** travelling twizzles, **−** Ina Bauer. The Figure menu includes all 12 moves on desktop and phone. Different jump preparations, changing arm positions, distinct inline flip tucks and checked exits give moves different silhouettes. Replaying a routine or duet changes its required elements, and neon gate layouts vary. Repeating the same scored move loses freshness; banking three distinct elements adds a variety bonus. Recovery and bails clear the current style chain.
+
+To enable night, **Pause → Switch to night → Keep skating**, or use **Settings → Graphics → Night mode → Apply**. This choice is saved. Across both cities and World Link, night skies have pink, gold, teal and violet heart/ring/starburst fireworks and glowing world-space messages reading **I LOVE YOU LAYAN**. Fireworks use one bounded particle draw, eight launch sites on desktop or four on phone, and no extra lights. Buildings and arena roofs occlude them. Reduced motion replaces launches and bursts with stationary sky messages; daylight hides the whole show.
+
+`npm run test:polish` checks gameplay-button keyboard focus, Taqee camera spacing, rendering budgets, the new figure moves, varied replays, saved night shortcuts/fireworks in both cities, reduced motion and phone layouts. `npm run test:flow` checks jumping, trick landing and continuous skating across a city chunk boundary. Unit tests cover the movement regressions, all 12 moves in Rapier, varied programs, style scoring and bounded fireworks geometry.
+
 ## Figure moves and arena games
 
-Version 0.21 adds eight assisted figure-skating moves at every ice arena. Open **Map → Ice arenas**, travel to a rink, then choose **Moves & games** or press **I**. On phone, the primary Backflip button becomes **Figure** while on ice; inline flips remain in **More**. Tap a move to begin its assisted entry, and brake to cancel. Leave room on the ice for travelling moves.
+Version 0.21 introduced eight assisted figure-skating moves at every ice arena. Open **Map → Ice arenas**, travel to a rink, then choose **Moves & games** or press **I**. On phone, the primary Backflip button becomes **Figure** while on ice; inline flips remain in **More**. Tap a move to begin its assisted entry, and brake to cancel. Leave room on the ice for travelling moves.
 
 | Keys | Moves |
 | --- | --- |

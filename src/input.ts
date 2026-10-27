@@ -1,8 +1,8 @@
 export type FlipAction = "frontflip" | "backflip" | "leftflip" | "rightflip";
-export type FigureAction = "upright" | "sit" | "camel" | "spiral" | "eagle" | "axel" | "salchow" | "toeloop";
+export type FigureAction = "upright" | "sit" | "camel" | "spiral" | "eagle" | "axel" | "salchow" | "toeloop" | "loop" | "lutz" | "twizzle" | "bauer";
 export type TrickAction = "left" | "right" | "grab" | "tweak" | "star" | "stale" | FlipAction | FigureAction;
 export const isFlip = (action: TrickAction): action is FlipAction => ["frontflip", "backflip", "leftflip", "rightflip"].includes(action);
-export const isFigure = (action: TrickAction): action is FigureAction => ["upright", "sit", "camel", "spiral", "eagle", "axel", "salchow", "toeloop"].includes(action);
+export const isFigure = (action: TrickAction): action is FigureAction => ["upright", "sit", "camel", "spiral", "eagle", "axel", "salchow", "toeloop", "loop", "lutz", "twizzle", "bauer"].includes(action);
 
 /** Edges survive render frames that run no fixed physics step. */
 export class ActionBuffer {
