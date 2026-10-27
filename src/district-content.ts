@@ -1,5 +1,5 @@
 export type DistrictTheme = "workshop" | "garden" | "art" | "festival" | "souq" | "oasis";
-export type DistrictProp = { kind: "stall" | "tree" | "bed" | "art" | "bench" | "stage" | "crates" | "rail"; x: number; z: number; w: number; d: number; h: number };
+export type DistrictProp = { kind: "stall" | "tree" | "bed" | "art" | "bench" | "stage" | "crates" | "rail" | "bank"; x: number; z: number; w: number; d: number; h: number };
 export type DistrictSite = { id: string; x: number; z: number; city: "gdansk" | "riyadh"; theme: DistrictTheme; size: number; props: DistrictProp[] };
 const noise = (x: number, z: number, n = 1) => { const v = Math.sin(x * 127.1 + z * 311.7 + n * 74.7) * 43758.5453; return v - Math.floor(v); };
 export const themeNames: Record<DistrictTheme, string> = { workshop: "Harbour Workshops", garden: "Community Gardens", art: "Sculpture Courts", festival: "Festival Courtyards", souq: "Market Gardens", oasis: "Palm Oases" };
@@ -28,6 +28,7 @@ export function makeDistrictSites(cx: number, cz: number, city: "gdansk" | "riya
     } else {
       add("stage", -8, -8, 7, 5, 0.4); add("stall", 9, 9, 5, 3, 1.15); add("bench", 9, -9, 5, 1, 0.45); add("tree", -9, 9, 0.6, 0.6, 5);
     }
+    if (fullSize && noise(x, z, 84) < 0.42) props[1] = { kind: "bank", x: x + 9, z: z + 8, w: 5, d: 8, h: noise(x, z, 85) < 0.5 ? 1.4 : 1.8 };
     sites.push({ id: `${city}-${cx}-${cz}-${ix}-${iz}`, x, z, city, theme, size: fullSize ? 28 : 12, props });
   }
   return sites;

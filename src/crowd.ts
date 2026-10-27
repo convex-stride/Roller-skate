@@ -12,6 +12,8 @@ export type CrowdPerson = CrowdPoint & {
   following: boolean; stuck: number; traveled: number;
   crouching?: boolean;
   airRotation?: number;
+  airPitch?: number;
+  airRoll?: number;
   grabbing?: boolean;
 };
 export type CrowdPlayer = CrowdPoint & { heading: number; speed: number; score: number };
@@ -86,7 +88,7 @@ export class CrowdDirector {
     for (const q of quests) {
       const { x, z } = q.anchor;
       add("walker", [[x - 3, z - 3], [x + 3, z - 3], [x + 3, z + 3], [x - 3, z + 3]], 2);
-      add(q.kind === "style" ? "spectator" : "social", [[x - 2, z + 2], [x - 1, z + 2]], 2);
+      add(q.kind === "style" || q.kind === "flip" ? "spectator" : "social", [[x - 2, z + 2], [x - 1, z + 2]], 2);
     }
     this.ambientStart = this.people.length;
     for (let n = 0; n < 32; n++) {

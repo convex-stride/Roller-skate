@@ -15,6 +15,7 @@ import { buildRaceScene } from "./race-scene";
 import { decorateDistrict } from "./district-scene";
 import { quests, QuestRun, questXP, validQuestSnapshot, type QuestDefinition, type QuestSnapshot } from "./quests";
 import { buildQuestScene } from "./quest-scene";
+import { streetBankGeometry } from "./street-bank";
 import { Companion, type PartnerMode } from "./companion";
 import { destinations, destinationFor, type Destination } from "./destinations";
 import { landmarks as cityLandmarks, cityStarts, practiceRails } from "./city-profile";
@@ -55,17 +56,20 @@ app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></c
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.16 / HELMETS & GUARDS").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.17 / FLIPS & AIRTIME").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
 const el = (id: string) => document.getElementById(id)!;
 el("hud").insertAdjacentHTML("beforeend", `<aside id="quest-card" class="hidden" aria-label="Neighbourhood quest"><small id="quest-area"></small><strong id="quest-title"></strong><p id="quest-dialogue"></p><b id="quest-objective"></b><span id="quest-progress"></span><small id="quest-xp"></small><div class="quest-actions"><button id="quest-accept">Accept quest</button><button id="quest-interact">Interact</button><button id="quest-abandon">Abandon quest</button><button id="quest-close">Close</button></div></aside>`);
 el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>J · Neighbourhood quests</b>Find local jobs · Enter / Y to accept or interact</div>");
+el("quest-interact").insertAdjacentHTML("afterend", '<button id="quest-bank" hidden>Ride bank</button>');
 document.querySelectorAll(".rider-profile > span:last-child").forEach(node => { node.innerHTML = "LAYAN<small>FREESTYLE RIDER</small>"; });
 document.querySelector(".rider-caption strong")!.textContent = "LAYAN / INLINE";
 el("app").insertAdjacentHTML("beforeend", `<button id="partner-toggle" class="hidden" aria-controls="partner-panel" aria-expanded="false">Call Taqee</button><aside id="partner-panel" class="hidden" aria-label="Taqee companion commands"><h3>Taqee & Layan</h3><p id="partner-status"></p><div class="partner-actions"><button data-partner="call">Come here</button><button data-partner="follow">Follow me</button><button data-partner="guide">Lead the way</button><button data-partner="tricks">Practise tricks</button><button data-partner="cheer">Cheer me on</button><button data-partner="wait">Wait here</button><button data-partner="race">Race me</button><button data-partner="quest">Find a quest</button><button data-partner="dismiss">See you later</button><button data-partner="close">Close</button></div></aside>`);
 el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>P · Call Taqee</b>Follow, guide, tricks, wait or race together</div>");
+el("help").querySelector(".controls")!.insertAdjacentHTML("beforeend", "<div><b>1 / 2 / 3 / 4 · flips</b>Front / back / left side / right side. Tap again for a double.</div><div><b>Controller D-pad</b>Up frontflip · down backflip · left/right side flip</div>");
+el("help").querySelector("p")!.insertAdjacentText("beforeend", " Flip buttons hop automatically from the ground. Hold Jump for more height. Combine a flip with Z/C and a grab. Doubles need extra airtime from a bank; unfinished rotations can bail.");
 el("hud").insertAdjacentHTML("beforeend", `<aside id="spot-card" aria-label="Play a stunt spot"><small id="spot-kicker">NEW PLACES TO RIDE</small><strong id="spot-title"></strong><p id="spot-detail"></p><div class="spot-meter"><i id="spot-fill"></i></div><span id="spot-reward"></span><div class="spot-actions"><button id="spot-play">T · Ride the jump line</button><button id="spot-next">Try another</button><button id="spot-leave" hidden>End run</button></div></aside>`);
 el("hud").insertAdjacentHTML("beforeend", `<aside id="race-card" class="hidden" aria-label="Street race"><small id="race-area"></small><strong id="race-title"></strong><div id="race-stats"></div><ol id="race-standings"></ol><p id="race-best"></p><div class="race-actions"><button id="race-join">Join race</button><button id="race-restart">Restart race</button><button id="race-leave">Leave race</button></div></aside><div id="race-countdown" class="hidden" role="status" aria-live="polite"></div>`);
 el("outfit-status").insertAdjacentHTML("afterend", '<div class="headwear-review"><button id="headwear-detail" aria-pressed="false">Inspect headwear</button><label id="rider-turn-label" hidden>Turn rider<input id="rider-turn" aria-label="Turn rider" type="range" min="-180" max="180" value="0" step="1"></label></div>');
@@ -236,7 +240,8 @@ async function boot() {
   );
   leafGeo.setIndex(leafIndices);
   leafGeo.computeVertexNormals();
-  const sharedGeometries = [boxGeo, cylGeo, sphereGeo, leafGeo];
+  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo];
+  const streetBankMeshes = new Map<string, THREE.BufferGeometry>();
   const collidersByGroup = new Map<THREE.Group, RAPIER.Collider[]>();
   function box(
     group: THREE.Group | THREE.Scene,
@@ -454,7 +459,17 @@ async function boot() {
     scene.add(g);
     const kit = { box, cylinder, tree, rail, material };
     streetDetails(g, cx, cz, city, kit);
-    decorateDistrict(g, cx, cz, city, kit);
+    decorateDistrict(g, cx, cz, city, kit, (group, p) => {
+      const data = streetBankGeometry(p), key = `${p.w}:${p.d}:${p.h}`;
+      if (!streetBankMeshes.has(key)) {
+        const local = streetBankGeometry({ ...p, x: 0, z: 0 }), geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(local.vertices, 3)); geometry.setIndex(new THREE.BufferAttribute(local.indices, 1)); geometry.computeVertexNormals();
+        streetBankMeshes.set(key, geometry); sharedGeometries.push(geometry);
+      }
+      const bank = new THREE.Mesh(streetBankMeshes.get(key)!, material(city === "gdansk" ? 0x809c9f : 0xb7a387)); bank.position.set(p.x, 0, p.z); bank.castShadow = true; bank.receiveShadow = true; group.add(bank);
+      const collider = world.createCollider(RAPIER.ColliderDesc.trimesh(data.vertices, data.indices).setFriction(0.05));
+      const colliders = collidersByGroup.get(group) ?? []; colliders.push(collider); collidersByGroup.set(group, colliders);
+    });
     for (const building of buildings(cx, cz, city))
       if (building.style === "modern") modernArchitecture(g, building, kit);
       else architecture(g, building, city, kit);
@@ -799,7 +814,7 @@ async function boot() {
     else if (nearest) startEvent(nearest);
     else startSpot(spotRun?.course ?? selectedCourse());
   }
-  const questPlayer = () => ({ ...skater.body.translation(), speed: skater.speed, score: skater.banked });
+  const questPlayer = () => ({ ...skater.body.translation(), speed: skater.speed, score: skater.banked, flipId: skater.flipLandings, flipKind: skater.lastLandedFlip });
   function visitQuest(definition: QuestDefinition) {
     stopRace(); stopSpot(); active = null; gate.visible = false; waypoint = null;
     el("event").classList.add("hidden");
@@ -811,7 +826,8 @@ async function boot() {
   function acceptQuest(definition: QuestDefinition) {
     if (Math.hypot(skater.body.translation().x - definition.anchor.x, skater.body.translation().z - definition.anchor.z) > 8) { toast("Skate closer to the quest giver"); return; }
     focusedQuest = null; dismissedQuest = null; questRun = new QuestRun(definition, skater.banked); save.questProgress = questRun.snapshot(); persist();
-    toast(`${definition.giver}: ${definition.kind === "delivery" ? "Bundle collected. Follow the first delivery marker." : definition.kind === "collect" ? "Find the three supply crates, then return here." : definition.kind === "discover" ? "Stop and inspect each marked place." : "Bank 300 points nearby, then come back."}`); canvas.focus();
+    questRun.syncFlip(skater.flipLandings);
+    toast(`${definition.giver}: ${definition.kind === "delivery" ? "Bundle collected. Follow the first delivery marker." : definition.kind === "collect" ? "Find the three supply crates, then return here." : definition.kind === "discover" ? "Stop and inspect each marked place." : definition.kind === "flip" ? "Land two different flip styles nearby, then come back." : "Bank 300 points nearby, then come back."}`); canvas.focus();
   }
   function interactQuest() {
     if (!questRun) return;
@@ -820,7 +836,7 @@ async function boot() {
     const result = questRun.interact(questPlayer());
     if (result === "slow") toast("Slow down before interacting");
     else if (result === "far") toast("Follow the quest marker and get within 5 m");
-    else if (result === "waiting") toast("Land and bank 300 points in this courtyard");
+    else if (result === "waiting") toast(questRun.definition.kind === "flip" ? "Land two different flip styles here · 1–4 or phone Backflip / More" : "Land and bank 300 points in this courtyard");
     else if (result === "collected") {
       const point = questRun.definition.objectives[questRun.visited.at(-1)!];
       toast(point.detail ?? (questRun.stage === "return" ? `All done here · return to ${questRun.definition.giver}` : `${point.label} · ${questRun.visited.length}/3 ${questRun.definition.kind === "delivery" ? "deliveries made" : "supplies recovered"}`));
@@ -839,15 +855,22 @@ async function boot() {
   }
   el("quest-accept").onclick = () => { const q = focusedQuest ?? nearestQuest ?? questRun?.definition; if (q) acceptQuest(q); };
   el("quest-interact").onclick = interactQuest;
+  el("quest-bank").onclick = () => {
+    const q = focusedQuest ?? questRun?.definition ?? nearestQuest;
+    if (!q || q.kind !== "flip") return;
+    skater.bank(); skater.reset(q.anchor.x + 9, q.anchor.z - 1); skater.heading = 0; lookYaw = 0;
+    safe = { x: q.anchor.x + 9, z: q.anchor.z - 1 }; stream(true); snapCamera(); canvas.focus();
+    toast(mobileDevice ? "Push up the bank · hold JUMP near the top · tap Backflip twice for a double" : "Push up the bank · hold Space + Shift near the top · tap a flip key twice for a double");
+  };
   el("quest-abandon").onclick = () => { questRun = null; delete save.questProgress; persist(); toast("Quest left · you can accept it again from its giver"); canvas.focus(); };
   el("quest-close").onclick = () => { dismissedQuest = (focusedQuest ?? questRun?.definition ?? nearestQuest)?.id ?? null; focusedQuest = null; if (questRun?.stage === "complete") questRun = null; canvas.focus(); };
   function tickQuest() {
     if (!questRun) return;
-    if (raceSession || active || spotRun?.status === "riding") { questRun.syncScore(skater.banked); return; }
+    if (raceSession || active || spotRun?.status === "riding") { questRun.syncScore(skater.banked, skater.flipLandings); return; }
     const stage = questRun.stage;
     questRun.tick(questPlayer(), STEP);
     if (questRun.stage !== "complete") save.questProgress = questRun.snapshot();
-    if (stage !== questRun.stage) { persist(); toast(questRun.stage === "failed" ? "Delivery time expired · return to the giver to retry" : `Trick target reached · return to ${questRun.definition.giver}`); }
+    if (stage !== questRun.stage) { persist(); toast(questRun.stage === "failed" ? "Delivery time expired · return to the giver to retry" : `Challenge complete · return to ${questRun.definition.giver}`); }
   }
   function updateQuestCard() {
     const q = focusedQuest ?? questRun?.definition ?? nearestQuest;
@@ -860,12 +883,16 @@ async function boot() {
     el("quest-dialogue").textContent = run ? `${q.giver} · ${run.stage === "complete" ? "Thanks for helping the neighbourhood!" : run.stage === "failed" ? "Come back and we can try that delivery run again." : run.stage === "return" ? "Come back when you’re ready to hand everything in." : q.kind === "style" ? "Keep the tricks in this courtyard and bank your combo." : "Follow the markers. Stop before you interact."}` : q.request;
     const target = run?.goal(skater.body.translation()), distance = target ? Math.round(Math.hypot(target.x - skater.body.translation().x, target.z - skater.body.translation().z)) : 0;
     el("quest-objective").textContent = !run ? save.completedQuests?.includes(q.id) ? "Already completed · replay for practice" : `Reward: ${q.reward} XP · Accept at the quest giver` : run.stage === "complete" ? "Reward saved · explore another district" : run.stage === "failed" ? "Return to the quest giver to retry" : run.stage === "return" ? `Return to ${q.giver} · ${distance} m` : q.kind === "style" ? `${Math.min(300, Math.floor(run.stylePoints))}/300 banked points` : `${q.kind === "delivery" ? "Deliver" : q.kind === "collect" ? "Recover" : "Inspect"} · ${run.visited.length}/3 done · ${distance} m`;
+    if (run?.stage === "objectives" && q.kind === "flip") { el("quest-objective").textContent = `${run.flipTypes.length}/2 different flips landed · tap 1–4 / phone Backflip + More`; el("quest-dialogue").textContent = `${q.giver}: Try front, back or side flips. Use the bank for height. Land on your wheels!`; }
     el("quest-progress").textContent = run && q.limit !== null && run.stage !== "complete" ? `${Math.max(0, Math.ceil(q.limit - run.elapsed))}s remaining` : "";
     el("quest-xp").textContent = `${questXP(save.completedQuests ?? [])} XP · ${save.completedQuests?.length ?? 0}/${quests.length} local quests complete`;
     el("quest-accept").hidden = !!run; el("quest-interact").hidden = !run || run.stage === "complete";
     el("quest-accept").textContent = focusedQuest && questRun && questRun.stage !== "complete" ? "Switch to this quest" : save.completedQuests?.includes(q.id) ? "Replay quest" : "Accept quest";
     el("quest-interact").textContent = run?.stage === "return" ? "Hand in quest" : run?.stage === "failed" ? "Retry quest" : q.kind === "discover" ? "Inspect" : q.kind === "delivery" ? "Deliver" : q.kind === "collect" ? "Collect" : "Check progress";
     el("quest-abandon").hidden = !run || run.stage === "complete"; el("quest-close").hidden = !!run && run.stage !== "complete";
+    el("quest-bank").hidden = q.kind !== "flip" || run?.stage === "return" || run?.stage === "failed";
+    if (mobileDevice && q.kind === "flip") { el("quest-accept").textContent = "Accept"; if (run?.stage === "objectives") el("quest-interact").textContent = "Check"; el("quest-bank").textContent = "Bank"; el("quest-abandon").textContent = "Leave"; }
+    else el("quest-abandon").textContent = "Abandon quest";
   }
   function updateRaceCard() {
     const run = raceSession?.run, definition = run?.definition ?? nearestRace;
@@ -989,7 +1016,7 @@ async function boot() {
   el("play").onclick = () => {
     closeMenus();
     snapCamera();
-    toast(mobileDevice ? "Thumbstick to skate · hold JUMP · tap a trick · drag the view to look" : "Space jump · rails auto-catch · Z/C spin · F/X/V/B stunts · T stunt spots");
+    toast(mobileDevice ? "Tap Backflip to hop + flip · More has front/side flips · hold JUMP for height" : "1–4 hop + flip · Space for height · Z/C spin · F grab · J → Flip challenges");
     if (preferences.audio) el("audio").dispatchEvent(new Event("change"));
   };
   el("resume").onclick = closeMenus;
@@ -1138,11 +1165,12 @@ async function boot() {
     el("challenge-list").querySelectorAll<HTMLButtonElement>("[data-quest]").forEach(button => {
       const q = quests.find(q => q.id === button.dataset.quest)!;
       button.textContent = `Quest: ${q.title} · ${q.giver}`;
+      if (q.kind === "flip") button.dataset.flip = q.id;
       const detail = document.createElement("small"); detail.textContent = `${q.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${q.area} · ${save.completedQuests?.includes(q.id) ? "COMPLETED" : `+${q.reward} XP`}`; button.append(detail);
     });
   }
   refreshQuestList();
-  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["park", "Skate parks"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
+  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["flip", "Flip challenges"], ["park", "Skate parks"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
   document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(button => button.onclick = () => {
     mapFilter = button.dataset.mapFilter!;
     document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
@@ -1284,6 +1312,7 @@ async function boot() {
       if (!validSave(data)) throw Error();
       save = data;
       questRun = save.questProgress ? new QuestRun(quests.find(q => q.id === save.questProgress!.id)!, skater.banked, save.questProgress) : null;
+      questRun?.syncFlip(skater.flipLandings);
       persist();
       avatar.setOutfit(outfitColors[save.outfit]);
       tokenMeshes.forEach(
@@ -1304,6 +1333,7 @@ async function boot() {
   if (touch.enabled) {
     el("help").querySelector(".controls")!.insertAdjacentHTML("afterbegin", "<div><b>Phone thumbstick</b>Up to push · sideways to turn · down to brake</div><div><b>Jump + tricks</b>Hold JUMP; tap 180, Grab or Tweak with another finger</div><div><b>More · drag view</b>Extra tricks and held moves · drag empty space to look</div>");
     el("help").querySelector("p")!.textContent = "Use both thumbs: keep pushing with the stick while you jump and tap tricks. Rails catch automatically. The More tray has spread eagle, stalefish, crouch, manual, slide and rail assist. Ride opens a nearby challenge; Map lets you choose any stunt spot. Portrait and landscape both work.";
+    el("help").querySelector("p")!.insertAdjacentText("beforeend", " Tap Backflip to hop and flip. More has front and side flips. Hold JUMP for height, then tap a flip twice for a double off a bank.");
   }
   let lookPointer: number | null = null, pointerX = 0, pointerY = 0;
   let dragging = false,
@@ -1388,6 +1418,10 @@ async function boot() {
       if (e.code === "KeyX") actions.trick("tweak");
       if (e.code === "KeyV") actions.trick("star");
       if (e.code === "KeyB") actions.trick("stale");
+      if (e.code === "Digit1") actions.trick("frontflip");
+      if (e.code === "Digit2") actions.trick("backflip");
+      if (e.code === "Digit3") actions.trick("leftflip");
+      if (e.code === "Digit4") actions.trick("rightflip");
       if (e.code === "KeyH") { pause(); showHelp(); }
       if (e.code === "KeyT") startSpot(spotRun?.course ?? selectedCourse());
       if (e.code === "KeyN") inviteLocal();
@@ -1449,6 +1483,7 @@ async function boot() {
     previousPadLeft = false,
     previousPadRight = false,
     previousPadGrab = false,
+    previousPadUp = false, previousPadDown = false, previousPadFlipLeft = false, previousPadFlipRight = false,
     previousStart = false,
     previousY = false,
     previousB = false;
@@ -1491,6 +1526,11 @@ async function boot() {
       if (!paused && btn(6) && !previousPadLeft) actions.trick("left");
       if (!paused && btn(7) && !previousPadRight) actions.trick("right");
       previousPadGrab = btn(2); previousPadLeft = btn(6); previousPadRight = btn(7);
+      if (!paused && btn(12) && !previousPadUp) actions.trick("frontflip");
+      if (!paused && btn(13) && !previousPadDown) actions.trick("backflip");
+      if (!paused && btn(14) && !previousPadFlipLeft) actions.trick("leftflip");
+      if (!paused && btn(15) && !previousPadFlipRight) actions.trick("rightflip");
+      previousPadUp = btn(12); previousPadDown = btn(13); previousPadFlipLeft = btn(14); previousPadFlipRight = btn(15);
       c.slide ||= btn(10);
       if (btn(9) && !previousStart) {
         if (!el("settings-screen").classList.contains("hidden"))
@@ -1832,6 +1872,13 @@ async function boot() {
         skater.airRotation +
         skater.landingYawOffset +
         (skater.switchStance ? Math.PI : 0);
+    rider.rotation.order = "YXZ";
+    rider.rotation.x = cinematic ? 0 : skater.airPitch + skater.landingPitchOffset;
+    rider.rotation.z = cinematic ? 0 : skater.airRoll + skater.landingRollOffset;
+    if (!cinematic) {
+      const rotatedHip = new THREE.Vector3(0, 0.9, 0).applyQuaternion(rider.quaternion);
+      rider.position.set(p.x - rotatedHip.x, p.y + 0.07 - rotatedHip.y, p.z - rotatedHip.z);
+    }
     avatar.animate(
       skater,
       c,
@@ -2000,7 +2047,7 @@ async function boot() {
       el("hint").innerHTML =
         nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
           ? `<kbd>Enter / Y</kbd> ${nearest.district} · ${nearest.kind.toUpperCase()}`
-          : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>Z/C</kbd> 180 · <kbd>F/X/V/B</kbd> stunts · <kbd>J</kbd> quests · <kbd>H</kbd> controls · <kbd>M</kbd> map";
+          : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>1–4</kbd> flips · <kbd>Z/C</kbd> spin · <kbd>F</kbd> grab · <kbd>J</kbd> quests · <kbd>H</kbd> controls · <kbd>M</kbd> map";
       if (active) {
         el("event").classList.remove("hidden");
         el("event").innerHTML =
@@ -2087,6 +2134,12 @@ async function boot() {
           jumps: skater.jumpCount,
           verticalSpeed: skater.body.linvel().y,
           airRotation: skater.airRotation,
+          airPitch: skater.airPitch,
+          airRoll: skater.airRoll,
+          flipKind: skater.flipKind,
+          flipLandings: skater.flipLandings,
+          lastLandedFlip: skater.lastLandedFlip,
+          landingQuality: skater.lastLandingQuality,
           liveTrick: skater.liveTrick,
           lastTrick: skater.lastTrick,
           combo: skater.combo,

@@ -10,7 +10,7 @@
 #touch-stick i { position: absolute; width: 47px; height: 47px; border-radius: 50%; background: #dfebbdc4; box-shadow: 0 3px 12px #0005; pointer-events: none; }
 .touch-buttons { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); right: max(14px, env(safe-area-inset-right)); width: 174px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 #touch-controls .touch-jump { background: #e2edae; color: #1c3939; border-radius: 50%; }
-.touch-more { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 164px); display: grid; grid-template-columns: repeat(3, 1fr); width: 220px; gap: 5px; background: #102c30e8; padding: 8px; border-radius: 12px; }
+.touch-more { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 164px); display: grid; grid-template-columns: repeat(4, 1fr); width: min(280px, calc(100vw - 28px)); gap: 5px; background: #102c30e8; padding: 8px; border-radius: 12px; }
 body.touch-play { overscroll-behavior: none; }
 body.touch-play #scene { touch-action: none; }
 body.touch-play .hint, body.touch-play .brand, body.touch-play .city, body.touch-play .map-key, body.touch-play .map-controls, body.touch-play .navigation-summary { display: none; }

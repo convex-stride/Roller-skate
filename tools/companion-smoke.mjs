@@ -11,7 +11,7 @@ try {
   assert.equal(await page.evaluate(() => window.__skate.state.riderName), "Layan");
   const origin = await page.evaluate(() => window.__skate.state.position);
   await page.keyboard.press("j");
-  assert.equal(await page.locator("[data-quest]:visible").count(), 96);
+  assert.equal(await page.locator("[data-quest]:visible").count(), 128);
   await page.locator('[data-map-city="gdansk"]').click();
   await page.screenshot({ path: "releases/layans-skate-96-quests.png" });
   const marker = await page.evaluate(() => window.__skate.destinations.find(d => d.id === "quest:quest-gdansk-0-0-community"));
@@ -83,5 +83,5 @@ try {
   await phone.screenshot({ path: "releases/layans-skate-phone-taqee-landscape.png" });
   for (const selector of ["#partner-panel", "#touch-stick", ".touch-buttons"]) { const r = await phone.locator(selector).boundingBox(); assert.ok(r && r.x >= 0 && r.y >= 0 && r.x + r.width <= 853 && r.y + r.height <= 394, `${selector} fits landscape`); }
   assert.deepEqual(errors, []);
-  console.log("Layan naming, 96 visible quests, city focus/search, route without teleport, physical Taqee guiding/waiting/tricks, completed duet and saved results, recall/dismiss and phone layouts passed; no runtime/shader errors.");
+  console.log("Layan naming, 128 visible quests, city focus/search, route without teleport, physical Taqee guiding/waiting/tricks, completed duet and saved results, recall/dismiss and phone layouts passed; no runtime/shader errors.");
 } finally { await browser.close(); }

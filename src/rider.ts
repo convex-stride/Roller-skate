@@ -352,11 +352,13 @@ export async function createRider(outfit: number) {
       grabBlend += ((!cinematic && s.grabbing ? 1 : 0) - grabBlend) * blend;
       const tuck = tuckBlend,
         compression = cinematic ? 0 : s.landingCompression;
-      const floor = groundHeight(group.position.x, group.position.z);
+      const physicalPosition = s.body.translation();
+      const floor = groundHeight(physicalPosition.x, physicalPosition.z);
       shadow.visible = floor !== null && !s.grinding;
       if (floor !== null) {
-        shadow.position.set(0, floor - group.position.y + 0.012, 0);
-        const height = Math.max(0, group.position.y - floor);
+        shadow.position.copy(group.worldToLocal(new THREE.Vector3(physicalPosition.x, floor + 0.012, physicalPosition.z)));
+        shadow.quaternion.copy(group.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0))));
+        const height = Math.max(0, physicalPosition.y - 0.83 - floor);
         shadowMat.opacity = Math.max(0.1, 1 - height * 0.5);
         shadow.scale.setScalar(1 + height * 0.3);
       }

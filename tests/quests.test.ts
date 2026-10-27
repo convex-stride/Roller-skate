@@ -15,10 +15,10 @@ describe("district activities and quests", () => {
     }
     expect(count).toBeGreaterThan(600);
   });
-  it("provides ninety-six reachable local quests with a mix of jobs in each city", () => {
-    expect(quests).toHaveLength(96); expect(new Set(quests.map(q => q.id)).size).toBe(96);
+  it("provides 128 reachable local quests with a mix of jobs in each city", () => {
+    expect(quests).toHaveLength(128); expect(new Set(quests.map(q => q.id)).size).toBe(128);
     for (const city of ["gdansk", "riyadh"] as const) {
-      const local = quests.filter(q => q.city === city); expect(local).toHaveLength(48); expect(new Set(local.map(q => q.kind)).size).toBe(4);
+      const local = quests.filter(q => q.city === city); expect(local).toHaveLength(64); expect(new Set(local.map(q => q.kind)).size).toBe(5);
     }
     for (const q of quests) {
       expect(clearGround(q.anchor.x, q.anchor.z, 1)).toBe(true);
@@ -61,5 +61,16 @@ describe("district activities and quests", () => {
     expect(validQuestSnapshot({ ...untimed.snapshot(), stage: "complete" })).toBe(false);
     expect(validQuestSnapshot({ ...untimed.snapshot(), stage: "failed" })).toBe(false);
     expect(validQuestSnapshot({ ...timed.snapshot(), stage: "objectives", visited: [2] })).toBe(false);
+  });
+  it("requires two new, different, nearby landed flips and restores their progress", () => {
+    const q = quests.find(q => q.kind === "flip")!, r = new QuestRun(q, 0);
+    r.syncFlip(5);
+    r.tick({ ...player, ...q.anchor, flipId: 5, flipKind: "backflip" }, 1); expect(r.flipTypes).toEqual([]);
+    r.tick({ ...player, ...q.anchor, flipId: 6, flipKind: "backflip" }, 1);
+    r.tick({ ...player, ...q.anchor, flipId: 7, flipKind: "backflip" }, 1); expect(r.flipTypes).toEqual(["backflip"]);
+    const restored = new QuestRun(q, 0, r.snapshot()); restored.syncFlip(7);
+    restored.tick({ ...player, x: q.anchor.x + 100, z: q.anchor.z, flipId: 8, flipKind: "frontflip" }, 1); expect(restored.stage).toBe("objectives");
+    restored.tick({ ...player, ...q.anchor, flipId: 9, flipKind: "frontflip" }, 1); expect(restored.stage).toBe("return");
+    expect(validQuestSnapshot(restored.snapshot())).toBe(true); expect(restored.interact({ ...player, ...q.anchor })).toBe("complete");
   });
 });

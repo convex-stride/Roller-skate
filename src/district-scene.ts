@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { districtSites, type City } from "./world";
-import { themeNames, type DistrictTheme } from "./district-content";
+import { themeNames, type DistrictTheme, type DistrictProp } from "./district-content";
 import { sign, surface, type StreetKit } from "./environment";
 
 const materials = new Map<string, THREE.MeshStandardMaterial>();
-export function decorateDistrict(group: THREE.Group, cx: number, cz: number, city: City, k: StreetKit) {
+export function decorateDistrict(group: THREE.Group, cx: number, cz: number, city: City, k: StreetKit, buildBank: (group: THREE.Group, p: DistrictProp) => void) {
   const sites = districtSites(cx, cz, city), historic = city === "gdansk";
   const colors: Record<DistrictTheme, number> = { workshop: 0x9b8e73, garden: 0x77966d, art: historic ? 0x819ca1 : 0xb9a887, festival: historic ? 0xa19b79 : 0xd1b88c, souq: 0xc3a273, oasis: 0x8caa7b };
   for (const [index, site] of sites.entries()) {
@@ -19,6 +19,11 @@ export function decorateDistrict(group: THREE.Group, cx: number, cz: number, cit
       k.box(group, site.x, 0.036, site.z + side * Math.min(4.5, site.size / 2 - 1), site.size - 0.5, 0.012, 0.14, historic ? 0xd3d0b3 : 0xe8d1a2);
     }
     for (const p of site.props) {
+      if (p.kind === "bank") {
+        buildBank(group, p);
+        for (const side of [-1, 1]) k.box(group, p.x + side * (p.w / 2 - 0.16), p.h / 2 + 0.03, p.z, 0.12, 0.025, Math.hypot(p.d, p.h), historic ? 0x8dd8db : 0xf0c581, false, -Math.atan2(p.h - 0.015, p.d));
+        continue;
+      }
       if (p.kind === "rail") { k.rail(group, p.x, p.z, p.d); continue; }
       if (p.kind === "tree") {
         k.tree(group, p.x, p.z, city);

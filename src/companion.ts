@@ -83,7 +83,10 @@ export class Companion {
     const newJump = this.player.jumpCount > this.lastJumps; this.lastJumps = this.player.jumpCount;
     if (s.grounded && ((newJump && distance(p, player) < 18 && this.mode !== "wait") || (this.mode === "tricks" && this.trickClock <= 0))) {
       c.jumpPressed = true; c.jump = true; c.tricks = ["left", "grab"]; this.trickClock = 5;
+      if (this.player.flipKind) c.tricks.push(this.player.flipKind);
+      else if (this.mode === "tricks") c.tricks.push("backflip");
     }
+    if (!s.grounded && !s.flipKind && this.player.flipKind && distance(p, player) < 18) c.tricks.push(this.player.flipKind);
     s.tick(c, []);
     if (guiding && remaining < 4 && distance(player, target) < 9) this.message = `We’re here, Layan — ${goal.label}.`;
     else if (waitingForLayan) this.message = "I’m just ahead. Follow my blue marker; I’ll wait for you.";
@@ -91,7 +94,7 @@ export class Companion {
   visual(time: number): CrowdPerson | null {
     if (!this.skater || this.pausedForRace) return null;
     const s = this.skater, p = s.body.translation(), player = this.player.body.translation();
-    return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
+    return { id: 21001, name: "Taqee", role: "skater", x: p.x, z: p.z, ground: p.y - 0.83, heading: s.heading, speed: s.speed, phase: s.pushPhase + time * 0.5, age: time, action: this.mode === "cheer" || this.celebration > 0 ? "cheer" : s.speed > 0.4 ? "push" : "talk", route: [], next: 0, wait: 0, reaction: this.celebration, distance: distance(p, player), following: true, stuck: 0, traveled: 0, airRotation: s.airRotation + s.landingYawOffset, airPitch: s.airPitch + s.landingPitchOffset, airRoll: s.airRoll + s.landingRollOffset, grabbing: !s.grounded && !!s.grabPose, crouching: !s.grounded };
   }
   get state() { const s = this.skater; return { active: this.active, mode: this.mode, message: this.message, position: s ? { ...s.body.translation() } : null, speed: s?.speed ?? 0, jumps: s?.jumpCount ?? 0, routePoints: this.route.length, racing: this.pausedForRace }; }
 }

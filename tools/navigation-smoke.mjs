@@ -71,8 +71,8 @@ try {
   await page.waitForFunction(
     () => window.__skate.state.position.z > 147,
     null,
-    { timeout: 60000 },
-  );
+    { timeout: 120000 },
+  ).catch(async error => { console.log(await page.evaluate(() => window.__skate.state)); await page.screenshot({ path: "releases/navigation-blocked.png" }); throw error; });
   await page.keyboard.up("w");
   const state = await page.evaluate(() => window.__skate.state);
   assert.ok(

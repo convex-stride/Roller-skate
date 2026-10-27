@@ -1,6 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { surfaceAt } from "./city-profile";
-import type { TrickAction } from "./input";
+import { isFlip, type FlipAction, type TrickAction } from "./input";
 export { RAPIER };
 export const STEP = 1 / 60;
 export type Controls = {
@@ -49,6 +49,15 @@ export class Skater {
   charge = 0;
   jumpCount = 0;
   airRotation = 0;
+  airPitch = 0;
+  airRoll = 0;
+  landingPitchOffset = 0;
+  landingRollOffset = 0;
+  flipKind: FlipAction | null = null;
+  flipLandings = 0;
+  lastLandedFlip: FlipAction | null = null;
+  lastLandingQuality: "perfect" | "landed" | "rough" | "bail" | null = null;
+  private flipTarget = 0;
   lastTrick = "";
   combo = 0;
   banked = 0;
@@ -121,6 +130,8 @@ export class Skater {
     this.multiplier = 1;
     this.comboTimer = 0;
     this.airRotation = 0;
+    this.airPitch = this.airRoll = this.landingPitchOffset = this.landingRollOffset = 0;
+    this.flipKind = null; this.flipTarget = 0;
     this.airborneTime = 0;
     this.charge = 0;
     this.jumpCooldown = 0.2;
@@ -173,11 +184,13 @@ export class Skater {
     this.bailTimer = Math.max(0, this.bailTimer - dt);
     this.landingCompression *= Math.exp(-dt * 7);
     this.landingYawOffset *= Math.exp(-dt * 9);
+    this.landingPitchOffset *= Math.exp(-dt * 12); this.landingRollOffset *= Math.exp(-dt * 12);
     this.brakePressure +=
       (c.brake - this.brakePressure) * (1 - Math.exp(-dt * 9));
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
     this.jumpAge += dt;
     if (c.jumpPressed) this.jumpBuffer = 0.18;
+    if (c.tricks.some(isFlip) && this.grounded && this.bailTimer === 0) this.jumpBuffer = 0.18;
     if (c.tricks.length && !this.grinding && (!this.grounded || this.jumpBuffer > 0))
       this.queuedTricks.push(...c.tricks);
     // Short taps make a low hop; a held jump retains the full ballistic arc.
@@ -260,30 +273,48 @@ export class Skater {
       const alignmentError = Math.abs(
         this.airRotation - Math.round(this.airRotation / Math.PI) * Math.PI,
       );
+      const flipAngle = this.flipKind === "frontflip" || this.flipKind === "backflip" ? this.airPitch : this.airRoll;
+      const flips = Math.round(Math.abs(flipAngle) / (Math.PI * 2));
+      const flipResidual = flipAngle - Math.round(flipAngle / (Math.PI * 2)) * Math.PI * 2;
+      const flipError = Math.abs(flipResidual);
+      const landedNames: string[] = [];
       this.landingCompression = Math.min(1, Math.abs(this.lastImpact) / 9);
       this.landingYawOffset =
         this.airRotation - Math.round(this.airRotation / Math.PI) * Math.PI;
-      if (this.lastImpact < -11 || alignmentError > 1.1) {
+      if (this.lastImpact < -11 || alignmentError > 1.1 || flipError > 0.9) {
         this.grinding = null;
         this.railCooldown = 0.5;
         this.combo = 0;
         this.multiplier = 1;
         this.lastTrick = "Bail · regain your balance";
+        this.lastLandingQuality = "bail";
         this.bailTimer = 0.85;
         this.body.setLinvel({ x: v.x * 0.45, y: v.y, z: v.z * 0.45 }, true);
       } else {
-        if (alignmentError > 0.4) {
+        this.lastLandingQuality = alignmentError > 0.4 || flipError > 0.35 ? "rough" : "landed";
+        this.landingPitchOffset = this.flipKind === "frontflip" || this.flipKind === "backflip" ? flipResidual : 0;
+        this.landingRollOffset = this.flipKind === "leftflip" || this.flipKind === "rightflip" ? flipResidual : 0;
+        if (alignmentError > 0.4 || flipError > 0.35) {
           this.body.setLinvel({ x: v.x * 0.78, y: v.y, z: v.z * 0.78 }, true);
           this.lastTrick = "Rough landing";
         }
         if (turns) {
           this.addTrick(`${turns * 180}° spin`, turns * 180);
+          landedNames.push(`${turns * 180}° spin`);
           if (turns % 2) this.switchStance = !this.switchStance;
         }
-        if (this.grabPerformed) this.addTrick(this.poseName, 180);
-        if (turns || this.grabPerformed) this.lastTrick += " · landed";
+        if (flips && this.flipKind) {
+          const name = `${flips > 1 ? "Double " : ""}${this.flipKind === "frontflip" ? "frontflip" : this.flipKind === "backflip" ? "backflip" : this.flipKind === "leftflip" ? "left side flip" : "right side flip"}`;
+          this.addTrick(name, flips * 450); landedNames.push(name);
+          this.flipLandings++; this.lastLandedFlip = this.flipKind;
+          if (alignmentError < 0.18 && flipError < 0.18 && this.lastImpact > -9) { this.addTrick("Perfect landing", 75); this.lastLandingQuality = "perfect"; }
+        }
+        if (this.grabPerformed) { this.addTrick(this.poseName, 180); landedNames.push(this.poseName); }
+        if (flips) this.lastTrick = `${landedNames.join(" + ")} · ${this.lastLandingQuality === "perfect" ? "perfect landing" : this.lastLandingQuality === "rough" ? "rough landing" : "landed"}`;
+        else if (turns || this.grabPerformed) this.lastTrick += " · landed";
       }
       this.airRotation = 0;
+      this.airPitch = this.airRoll = 0; this.flipTarget = 0; this.flipKind = null;
       this.spinVelocity = 0;
       this.spinTarget = 0;
       this.grabTimer = 0;
@@ -352,7 +383,7 @@ export class Skater {
               ? 0
               : Math.PI;
         this.comboTimer = 2;
-        if (c.jumpPressed) {
+        if (c.jumpPressed || c.tricks.some(isFlip)) {
           if (this.grindingDistance > 1) this.addTrick(`${this.grindStyle} · pop out`, Math.min(500, Math.round(this.grindingDistance * 25)));
           const velocity = this.body.linvel();
           this.body.setLinvel({ ...velocity, y: 4.8 }, true);
@@ -448,16 +479,26 @@ export class Skater {
       for (const action of this.queuedTricks) {
         if (action === "left" || action === "right")
           this.spinTarget = Math.max(-4 * Math.PI, Math.min(4 * Math.PI, this.spinTarget + (action === "left" ? 1 : -1) * Math.PI));
-        else { this.grabPose = action; this.grabTimer = 0.45; this.grabPerformed = true; }
+        else if (isFlip(action)) {
+          if (!this.flipKind || this.flipKind === action) { this.flipKind = action; this.flipTarget = Math.min(Math.PI * 4, this.flipTarget + Math.PI * 2); }
+        } else { this.grabPose = action; this.grabTimer = 0.45; this.grabPerformed = true; }
       }
       this.queuedTricks = [];
       const remaining = this.spinTarget - this.airRotation;
       const step = Math.sign(remaining) * Math.min(Math.abs(remaining), 8.5 * dt);
       this.spinVelocity = step / dt;
       this.airRotation += step;
+      if (this.flipKind) {
+        const pitch = this.flipKind === "frontflip" || this.flipKind === "backflip";
+        const direction = this.flipKind === "frontflip" || this.flipKind === "leftflip" ? 1 : -1;
+        const current = pitch ? this.airPitch : this.airRoll;
+        const remainingFlip = this.flipTarget - Math.abs(current);
+        const angle = direction * Math.min(Math.max(0, remainingFlip), 10.5 * dt);
+        if (pitch) this.airPitch += angle; else this.airRoll += angle;
+      }
       this.grabTimer = Math.max(0, this.grabTimer - dt);
       if (c.grab) { this.grabPose = "grab"; this.grabTimer = 0.1; this.grabPerformed = true; }
-      this.liveTrick = [this.spinTarget ? `${Math.round(Math.abs(this.spinTarget) / Math.PI) * 180}°` : "", this.grabTimer > 0 ? this.poseName.toUpperCase() : ""].filter(Boolean).join(" + ");
+      this.liveTrick = [this.flipKind ? `${this.flipTarget > Math.PI * 2 ? "DOUBLE " : ""}${this.flipKind === "frontflip" ? "FRONTFLIP" : this.flipKind === "backflip" ? "BACKFLIP" : this.flipKind === "leftflip" ? "LEFT SIDE FLIP" : "RIGHT SIDE FLIP"}` : "", this.spinTarget ? `${Math.round(Math.abs(this.spinTarget) / Math.PI) * 180}°` : "", this.grabTimer > 0 ? this.poseName.toUpperCase() : ""].filter(Boolean).join(" + ");
     }
     if (!c.manual) this.manualNeedsRelease = false;
     this.manualActive =

@@ -1,6 +1,6 @@
 {
   "name": "layans-skate",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -22,6 +22,7 @@
     "test:parks": "node tools/parks-smoke.mjs",
     "test:quests": "node tools/quests-smoke.mjs",
     "test:companion": "node tools/companion-smoke.mjs",
+    "test:flips": "node tools/flips-smoke.mjs",
     "build:rider": "node tools/build-rider.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run"

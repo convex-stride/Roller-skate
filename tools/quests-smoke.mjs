@@ -43,7 +43,7 @@ try {
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   await page.keyboard.press("j");
   await page.locator("#map-travel-mode").click();
-  assert.equal(await page.locator("[data-quest]:visible").count(), 96);
+  assert.equal(await page.locator("[data-quest]:visible").count(), 128);
   assert.equal(await page.locator("[data-race]:visible").count(), 0);
   await page.screenshot({ path: "releases/layans-skate-quest-map.png" });
   await page.locator('[data-quest="quest-gdansk-0-3"]').click();
@@ -122,5 +122,5 @@ try {
   const card = await phone.locator("#quest-card").boundingBox(); assert.ok(card.y + card.height < 393);
   const stick = await phone.locator("#touch-stick").boundingBox(); assert.ok(card.y + card.height <= stick.y, "quest card leaves landscape thumbstick clear");
   assert.deepEqual(errors, []);
-  console.log("96 quest destinations, real-input style and three-stop delivery completion, XP/reload, active quest restore/abandon and phone quest travel/layout passed; no runtime/shader errors.");
+  console.log("128 quest destinations, real-input style and three-stop delivery completion, XP/reload, active quest restore/abandon and phone quest travel/layout passed; no runtime/shader errors.");
 } finally { await browser.close(); }

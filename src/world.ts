@@ -221,7 +221,7 @@ function distanceToSegment(x: number, z: number, a: { x: number; z: number }, b:
 export function protectedActivityGround(x: number, z: number, margin: number) {
   if (Math.abs(x) < 200 + margin || insideSpot(x, z, margin + 4) || inHeritageSquare(x, z, margin + 10) || landmarkAt(x, z, margin + 10)) return true;
   const city = cityAt(x);
-  if (Math.abs(x - centers[city]) < 140 + margin && Math.abs(z) < 210 + margin) return true;
+  if (Math.abs(x - centers[city]) < 75 + margin && Math.abs(z) < 210 + margin) return true;
   if (x < 0 && x > -1120 - margin && x < -880 + margin && z > 62 - margin && z < 134 + margin) return true;
   return races.some(r => [r.start, ...r.checkpoints].slice(1).some((p, i) => distanceToSegment(x, z, [r.start, ...r.checkpoints][i], p) < 8 + margin));
 }

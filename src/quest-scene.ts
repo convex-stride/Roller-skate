@@ -15,7 +15,7 @@ export function buildQuestScene(scene: THREE.Scene) {
     c.font = "27px Arial"; c.fillText(q.title, 256, 136, 460); c.font = "bold 25px Arial"; c.fillText(`${q.kind.toUpperCase()} · ${q.reward} XP`, 256, 203, 460);
     const labelTexture = new THREE.CanvasTexture(label); labelTexture.colorSpace = THREE.SRGBColorSpace;
     const board = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 0.08), new THREE.MeshBasicMaterial({ map: labelTexture })); board.position.y = 1.9; group.add(board);
-    const courtRing = new THREE.Mesh(new THREE.RingGeometry(q.kind === "style" ? 5.8 : 2.6, q.kind === "style" ? 6 : 2.72, 40), new THREE.MeshBasicMaterial({ color: q.kind === "style" ? 0xd2aecc : q.city === "gdansk" ? 0xa4cfd0 : 0xe6cb92, depthWrite: false }));
+    const courtRing = new THREE.Mesh(new THREE.RingGeometry(q.kind === "style" || q.kind === "flip" ? 5.8 : 2.6, q.kind === "style" || q.kind === "flip" ? 6 : 2.72, 40), new THREE.MeshBasicMaterial({ color: q.kind === "style" || q.kind === "flip" ? 0xd2aecc : q.city === "gdansk" ? 0xa4cfd0 : 0xe6cb92, depthWrite: false }));
     courtRing.rotation.x = -Math.PI / 2; courtRing.position.set(2.5, 0.055, -2); group.add(courtRing);
     const material = new THREE.SpriteMaterial({ map: texture, depthTest: true }); const badge = new THREE.Sprite(material); badge.position.y = 3; badge.scale.setScalar(0.9); group.add(badge);
     return { group, badge, material, quest: q };
@@ -43,8 +43,8 @@ export function buildQuestScene(scene: THREE.Scene) {
         m.group.visible = !!points[i]; if (!points[i]) return;
         m.group.position.set(points[i].x, 0, points[i].z); m.box.rotation.y = time * 0.5;
         m.box.position.y = 0.8 + Math.sin(time * 2) * 0.1;
-        m.box.visible = run?.definition.kind !== "style";
-        m.ring.scale.setScalar(run?.definition.kind === "style" && run.stage === "objectives" ? 25 : 1);
+        m.box.visible = run?.definition.kind !== "style" && run?.definition.kind !== "flip";
+        m.ring.scale.setScalar((run?.definition.kind === "style" || run?.definition.kind === "flip") && run.stage === "objectives" ? 25 : 1);
         m.material.color.setHex(run?.definition.kind === "discover" ? 0x9dcbd3 : 0xe4e993);
       });
       if (run?.definition.kind === "delivery" && run.stage === "objectives" && showTargets) {

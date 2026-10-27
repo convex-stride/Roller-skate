@@ -120,10 +120,12 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     rig.poses.forEach(({ b, q, p }) => { b.quaternion.copy(q); b.position.copy(p); });
     const height = p.name === "Taqee" ? 1.05 : 0.94 + (p.id % 5) * 0.025, stride = Math.sin(p.phase), moving = Math.min(1, p.speed / (skating ? 2 : 0.8));
     rig.group.position.set(p.x, p.ground, p.z); rig.group.rotation.y = p.heading + (p.airRotation ?? 0); rig.group.scale.set(1, height, 1);
+    rig.group.rotation.order = "YXZ"; rig.group.rotation.x = p.airPitch ?? 0; rig.group.rotation.z = p.airRoll ?? 0;
+    if (p.airPitch || p.airRoll) { const hip = new THREE.Vector3(0, 0.9 * height, 0).applyQuaternion(rig.group.quaternion); rig.group.position.set(p.x - hip.x, p.ground + 0.9 * height - hip.y, p.z - hip.z); }
     rig.body.position.y = skating ? p.crouching ? -0.03 : 0.07 : Math.abs(stride) * 0.025 * moving + 0.025;
     rig.body.rotation.x = p.crouching ? 0.15 : 0;
     rig.group.updateMatrixWorld(true);
-    const forward = new THREE.Vector3(Math.sin(p.heading), 0, Math.cos(p.heading));
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(rig.group.quaternion);
     rig.legs.forEach((leg, i) => {
       const side = i === 0 ? 1 : -1, phase = Math.sin(p.phase + i * Math.PI);
       const local = new THREE.Vector3(side * (0.12 + (skating ? Math.max(0, phase) * 0.22 * moving : 0)), 0.22 + (skating ? Math.max(0, -phase) * 0.08 : Math.max(0, phase) * 0.1) * moving,

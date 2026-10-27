@@ -1,4 +1,6 @@
-export type TrickAction = "left" | "right" | "grab" | "tweak" | "star" | "stale";
+export type FlipAction = "frontflip" | "backflip" | "leftflip" | "rightflip";
+export type TrickAction = "left" | "right" | "grab" | "tweak" | "star" | "stale" | FlipAction;
+export const isFlip = (action: TrickAction): action is FlipAction => ["frontflip", "backflip", "leftflip", "rightflip"].includes(action);
 
 /** Edges survive render frames that run no fixed physics step. */
 export class ActionBuffer {
