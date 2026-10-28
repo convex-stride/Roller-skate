@@ -38,37 +38,37 @@ jobs:
           key: android-preview-signing-v1
       - run: npm run package:android 2>&1 | tee /tmp/layans-android-build.log
       - run: npm run test:downloads 2>&1 | tee /tmp/layans-download-check.log
-      - name: Add itch.io upload instructions
-        run: |
-          cat > releases/ITCH-UPLOAD.txt <<'EOF'
-          Layan's Skate — itch.io uploads
-
-          Extract this GitHub artifact ZIP once. Upload these three files to one itch.io HTML project:
-          layans-skate-v0.24.zip — check "This file will be played in the browser".
-          layans-skate-0.24.0-windows-x64.zip — select Windows.
-          layans-skate-0.24.0-android.apk — select Android.
-
-          Keep the inner ZIP files intact. Do not upload the outer GitHub artifact ZIP as the HTML game.
-          Native packages are preview builds and require testing on actual devices before public release.
-          EOF
-      - uses: actions/upload-artifact@v4
-        id: downloads
+      - name: Upload web game as-is
+        uses: actions/upload-artifact@v7
+        id: web
         with:
-          name: layans-skate-downloads
-          path: |
-            releases/layans-skate-*-windows-x64.zip
-            releases/layans-skate-*-android.apk
-            releases/layans-skate-v*.zip
-            releases/SHA256SUMS.txt
-            releases/ITCH-UPLOAD.txt
+          path: releases/layans-skate-v0.24.zip
+          archive: false
           retention-days: 14
-          compression-level: 0
           if-no-files-found: error
-      - name: Show browser download link
+      - name: Upload Windows game as-is
+        uses: actions/upload-artifact@v7
+        id: windows
+        with:
+          path: releases/layans-skate-0.24.0-windows-x64.zip
+          archive: false
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload Android game as-is
+        uses: actions/upload-artifact@v7
+        id: android
+        with:
+          path: releases/layans-skate-0.24.0-android.apk
+          archive: false
+          retention-days: 14
+          if-no-files-found: error
+      - name: Show separate download links
         env:
-          LAYANS_DOWNLOAD_URL: ${{ steps.downloads.outputs.artifact-url }}
+          LAYANS_WEB_URL: ${{ steps.web.outputs.artifact-url }}
+          LAYANS_WINDOWS_URL: ${{ steps.windows.outputs.artifact-url }}
+          LAYANS_ANDROID_URL: ${{ steps.android.outputs.artifact-url }}
         run: |
-          printf '[Download all three itch.io uploads](%s)\n\nSign into GitHub to download. Extract the outer ZIP once and follow ITCH-UPLOAD.txt.\n' "$LAYANS_DOWNLOAD_URL" >> "$GITHUB_STEP_SUMMARY"
+          printf '[Web ZIP](%s) · [Windows ZIP](%s) · [Android APK](%s)\n\nSign into GitHub to download. Upload each file directly to itch.io, keeping both ZIPs intact.\n' "$LAYANS_WEB_URL" "$LAYANS_WINDOWS_URL" "$LAYANS_ANDROID_URL" >> "$GITHUB_STEP_SUMMARY"
       - name: Summarize native build errors
         if: failure()
         run: |
