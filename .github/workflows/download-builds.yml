@@ -9,30 +9,35 @@ permissions:
   contents: read
 jobs:
   package:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Verify runner Android SDK
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - run: npm ci
       - run: npm test
       - run: npm run package
-      - run: npm run package:windows
+      - run: npm run package:windows 2>&1 | tee /tmp/layans-windows-build.log
       - name: Restore preview signing key
         uses: actions/cache@v4
         with:
           path: .local-signing/android-preview.jks
           key: android-preview-signing-v1
-      - run: npm run package:android
-      - run: npm run test:downloads
+      - run: npm run package:android 2>&1 | tee /tmp/layans-android-build.log
+      - run: npm run test:downloads 2>&1 | tee /tmp/layans-download-check.log
       - name: Add itch.io upload instructions
         run: |
           cat > releases/ITCH-UPLOAD.txt <<'EOF'
@@ -64,3 +69,18 @@ jobs:
           LAYANS_DOWNLOAD_URL: ${{ steps.downloads.outputs.artifact-url }}
         run: |
           printf '[Download all three itch.io uploads](%s)\n\nSign into GitHub to download. Extract the outer ZIP once and follow ITCH-UPLOAD.txt.\n' "$LAYANS_DOWNLOAD_URL" >> "$GITHUB_STEP_SUMMARY"
+      - name: Summarize native build errors
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as summary:
+              for name in ['windows-build','android-build','download-check']:
+                  path=Path('/tmp/layans-'+name+'.log')
+                  if not path.exists():continue
+                  lines=[line for line in path.read_text(errors='replace').splitlines() if re.search(r'error|exception|not found|no such file|failed',line,re.I)]
+                  safe=re.sub(r'https?://\S+','[URL]','\n'.join(lines[-15:]))
+                  safe=re.sub(r'(?i)(token|password|secret|authorization)(\s*[:=]\s*)\S+',r'\1\2[redacted]',safe)
+                  summary.write('\n'+name+':\n```text\n'+safe[:4000]+'\n```\n')
+          PY
