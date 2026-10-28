@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { extractFile } from '@electron/asar';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -17,6 +17,14 @@ const apk = join(root, `releases/layans-skate-${version}-android.apk`);
 const apkHtml = execFileSync('unzip', ['-p', apk, 'assets/index.html'], { maxBuffer: 16 * 1024 * 1024 });
 assert.deepEqual(apkHtml, html, 'Android bundles the same current offline game');
 const files = [`layans-skate-${version}-windows-x64.zip`, `layans-skate-${version}-android.apk`, 'layans-skate-v0.24.zip'];
+const packedAsar=execFileSync('unzip',['-p',join(root,'releases',files[0]),'resources/app.asar'],{maxBuffer:32*1024*1024});
+assert.deepEqual(packedAsar,await readFile(join(win,'resources/app.asar')),'Windows ZIP contains the verified current application');
+for(const entry of await readdir(join(root,'dist'),{recursive:true,withFileTypes:true})) {
+  if(!entry.isFile())continue;
+  const path=join(entry.parentPath,entry.name),relative=path.slice(join(root,'dist').length+1);
+  const packed=execFileSync('unzip',['-p',join(root,'releases',files[2]),relative],{maxBuffer:16*1024*1024});
+  assert.deepEqual(packed,await readFile(path),`itch.io ZIP contains current ${relative}`);
+}
 const sums = [];
 for (const file of files) {
   const path = join(root, 'releases', file);

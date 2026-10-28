@@ -60,12 +60,16 @@ try {
   // Collect a known route token using the actual map travel flow. Random starts
   // deliberately no longer place every player on the old first-token straight.
   await page.keyboard.press("m");
+  // City zoom gives enough pointer precision to land inside the 1.8 m pickup
+  // radius; one CSS pixel on the whole-world view can span several metres.
+  await page.locator('[data-map-city="gdansk"]').click();
   await page.locator("#map-pin-mode").click();
   const map = page.locator("#world-map"), box = await map.boundingBox();
-  const scale = Math.min(900 / 3800, 380 / 1800);
-  await map.click({ position: { x: (450 - 1000 * scale) / 900 * box.width, y: (210 + 12 * scale) / 420 * box.height } });
+  const pixels=await map.evaluate(c=>({w:c.width,h:c.height}));
+  const scale = Math.min(pixels.w / 1800, (pixels.h-40) / 1800);
+  await map.click({ position: { x: box.width/2, y: (pixels.h/2+12*scale)/pixels.h*box.height } });
   await page.locator("#map-selected-travel").click();
-  await page.waitForFunction(() => window.__skate.state.collected > 0, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__skate.state.collected > 0, null, { timeout: 60000 }).catch(async error=>{console.log(JSON.stringify(await page.evaluate(()=>({position:window.__skate.state.position,paused:window.__skate.state.paused,collected:window.__skate.state.collected}))));throw error;});
   await page.keyboard.press("m");
   await page.locator("#map-travel-mode").click();
   await page.locator('[data-event="0"]').click();
