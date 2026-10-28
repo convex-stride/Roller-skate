@@ -15,8 +15,8 @@ function tinted(g:THREE.BufferGeometry,value:number) {
   for(let i=0;i<p.count;i++){const v=value+Math.max(0,p.getY(i))*.4;c.set([v,v*.96,v*.9],i*3);}
   g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;
 }
-function cap() {
-  const positions:number[]=[],indices:number[]=[],rows=10,cols=24;
+function cap(distant=false) {
+  const positions:number[]=[],indices:number[]=[],rows=distant?6:10,cols=distant?12:24;
   for(let r=0;r<=rows;r++)for(let c=0;c<=cols;c++) {
     const phi=c/cols*Math.PI*2,front=Math.max(0,Math.cos(phi)),end=2.38-front*1.18,theta=.12+(end-.12)*r/rows;
     positions.push(Math.sin(phi)*Math.sin(theta)*.114,Math.cos(theta)*.137,Math.cos(phi)*Math.sin(theta)*.117);
@@ -26,7 +26,7 @@ function cap() {
 }
 export function hairGeometry(style:number| 'taqee', distant=false) {
   const key=`${style}:${distant}`;if(cache.has(key))return cache.get(key)!;
-  const parts:THREE.BufferGeometry[]=[cap()];
+  const parts:THREE.BufferGeometry[]=[cap(distant)];
   if(!distant) {
     const variant=style==='taqee'?4:style%hairStyles.length;
     const count=variant===1?32:variant===3?18:22;

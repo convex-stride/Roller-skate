@@ -8,6 +8,8 @@ const armor = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.
 const dark = new THREE.MeshStandardMaterial({ color: 0x29353b, roughness: 0.9 });
 const helmetMaterials = new Map<number, THREE.MeshStandardMaterial>();
 const pads = new Map<PadKind, THREE.BufferGeometry>();
+const distantPads = new Map<PadKind, THREE.BufferGeometry>();
+const padSizes = { knee:[.15,.19,.075,.076], elbow:[.11,.14,.065,.057], wrist:[.085,.105,.045,.041] } as const;
 function tint(g: THREE.BufferGeometry, color: number) {
   const c = new THREE.Color(color), count = g.getAttribute("position").count, colors = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) colors.set([c.r, c.g, c.b], i * 3);
@@ -15,7 +17,7 @@ function tint(g: THREE.BufferGeometry, color: number) {
 }
 export function padGeometry(kind: PadKind) {
   if (!pads.has(kind)) {
-    const size = kind === "knee" ? [0.15, 0.19, 0.075, 0.076] : kind === "elbow" ? [0.11, 0.14, 0.065, 0.057] : [0.085, 0.105, 0.045, 0.041];
+    const size = padSizes[kind];
     const [w, h, d, radius] = size;
     const parts = [
       tint(new RoundedBoxGeometry(w + 0.018, h + 0.018, d * 0.7, 2, 0.018).translate(0, 0, radius), 0x26343a),
@@ -28,8 +30,23 @@ export function padGeometry(kind: PadKind) {
   }
   return pads.get(kind)!;
 }
-function shellGeometry(vented: boolean) {
-  const positions: number[] = [], uv: number[] = [], indices: number[] = [], rows = 18, cols = 32;
+/** Same silhouettes, cheaper guards beyond the detailed rider radius. */
+export function distantPadGeometry(kind:PadKind) {
+  if(!distantPads.has(kind)) {
+    const [w,h,d,radius]=padSizes[kind];
+    const parts=[
+      tint(new THREE.BoxGeometry(w+.018,h+.018,d*.7).translate(0,0,radius),0x26343a),
+      tint(new THREE.BoxGeometry(w,h,d).translate(0,0,radius+.018),0x748d9b),
+      tint(new THREE.BoxGeometry(w*.5,.012,.006).translate(0,h*.22,radius+d/2+.022),0xdce8d5),
+      ...[-h*.32,h*.32].map(y=>tint(new THREE.CylinderGeometry(radius+.012,radius+.012,.018,6,1,true).translate(0,y,0),0x26343a)),
+    ];
+    const flat=parts.map(g=>g.toNonIndexed()),g=mergeGeometries(flat)!;
+    new Set([...parts,...flat]).forEach(p=>p.dispose());distantPads.set(kind,g);
+  }
+  return distantPads.get(kind)!;
+}
+function shellGeometry(vented: boolean,rows=18,cols=32) {
+  const positions: number[] = [], uv: number[] = [], indices: number[] = [];
   for (let y = 0; y <= rows; y++) for (let x = 0; x <= cols; x++) {
     const phi = x / cols * Math.PI * 2, theta = y / rows * (1.98 - 0.75 * Math.max(0, Math.cos(phi)) ** 0.7);
     positions.push(Math.sin(phi) * Math.sin(theta) * 0.12, Math.cos(theta) * 0.14, Math.cos(phi) * Math.sin(theta) * 0.145);
@@ -42,6 +59,7 @@ function shellGeometry(vented: boolean) {
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(indices); g.computeVertexNormals(); return g;
 }
 export const helmetShellGeometry = shellGeometry(true);
+export const distantHelmetShellGeometry = shellGeometry(false,6,12);
 function strap(a: THREE.Vector3, b: THREE.Vector3) {
   const g = new THREE.BoxGeometry(0.012, a.distanceTo(b), 0.007);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()));
@@ -54,6 +72,10 @@ for (const side of [-1, 1]) {
 }
 linerParts.push(new THREE.BoxGeometry(0.065, 0.012, 0.016).translate(0, -0.14, 0.08));
 export const helmetLinerGeometry = mergeGeometries(linerParts)!; linerParts.forEach(g => g.dispose());
+const distantLinerParts=[shellGeometry(false,6,12).scale(.965,.965,.965)];
+for(const side of [-1,1]) {const chin=new THREE.Vector3(side*.035,-.14,.08);distantLinerParts.push(strap(new THREE.Vector3(side*.11,-.025,.025),chin),strap(new THREE.Vector3(side*.1,-.04,-.07),chin));}
+distantLinerParts.push(new THREE.BoxGeometry(.065,.012,.016).translate(0,-.14,.08));
+export const distantHelmetLinerGeometry=mergeGeometries(distantLinerParts)!;distantLinerParts.forEach(g=>g.dispose());
 export function createSkateHelmet(color: number, overCloth = false) {
   const group = new THREE.Group(); group.name = "Vented skate helmet with liner and chin straps";
   if (!helmetMaterials.has(color)) helmetMaterials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.48 }));

@@ -9,7 +9,7 @@ function watch(page) {
 }
 async function ready(page) { await page.getByRole("button", { name: "Find your line" }).waitFor({ timeout: 90000 }); }
 async function settled(page, night) {
-  await page.waitForFunction(night => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0 && window.__skate.state.rendering.night.enabled === night, night, { timeout: 90000 });
+  await page.waitForFunction(night => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0 && window.__skate.state.rendering.night.enabled === night && (!night || window.__skate.state.rendering.night.streetLamps > 0), night, { timeout: 90000 });
   assert.deepEqual(errors, []);
 }
 async function pixels(page) {
@@ -33,7 +33,7 @@ try {
   await page.waitForFunction(() => !window.__skate.state.rendering.night.enabled);
   await page.locator("#lobby-settings").click(); await page.locator("#nightMode").check();
   await page.locator("#settings-apply").click(); await page.locator("#settings-back").click();
-  await page.getByRole("button", { name: "Find your line" }).click(); await settled(page, true);
+  await page.getByRole("button", { name: "Find your line" }).click(); await page.keyboard.press('Escape');await page.locator('#rail-practice').click();await settled(page, true);
   const gd = await pixels(page), state = await page.evaluate(() => window.__skate.state);
   assert.ok(gd.sky < 45 && gd.ground > 8, JSON.stringify(gd));
   assert.ok(state.rendering.night.streetLamps > 0 && state.rendering.night.pointLights <= 4);
@@ -41,7 +41,7 @@ try {
   await page.reload(); await ready(page);
   assert.equal(await page.locator("#nightMode").isChecked(), true);
   assert.equal(await page.evaluate(() => window.__skate.state.preferences.nightMode), true);
-  await page.locator("#select-riyadh").click(); await page.getByRole("button", { name: "Find your line" }).click(); await settled(page, true);
+  await page.locator("#select-riyadh").click(); await page.getByRole("button", { name: "Find your line" }).click();await page.keyboard.press('Escape');await page.locator('#rail-practice').click();await settled(page, true);
   const ry = await pixels(page); assert.ok(ry.sky < 45 && ry.ground > 8, JSON.stringify(ry));
   await page.screenshot({ path: "releases/layans-skate-riyadh-night.png" });
   await page.keyboard.down("w"); await page.waitForFunction(() => window.__skate.state.speed > 2, undefined, { timeout: 60000 }); await page.keyboard.up("w");
@@ -55,7 +55,7 @@ try {
   await page.screenshot({ path: "releases/layans-skate-day-restored.png" }); await page.close();
   const phone = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); watch(phone);
   await phone.goto(url); await ready(phone); await phone.locator("#lobby-settings").tap(); await phone.locator("#nightMode").check();
-  await phone.locator("#settings-apply").tap(); await phone.locator("#settings-back").tap(); await phone.getByRole("button", { name: "Find your line" }).tap(); await settled(phone, true);
+  await phone.locator("#settings-apply").tap(); await phone.locator("#settings-back").tap(); await phone.getByRole("button", { name: "Find your line" }).tap();await phone.getByRole('button',{name:'Pause game',exact:true}).tap();await phone.locator('#rail-practice').tap();await settled(phone, true);
   let mobile = await phone.evaluate(() => window.__skate.state);
   assert.equal(mobile.touch.enabled, true); assert.equal(mobile.rendering.shadows, false); assert.ok(mobile.rendering.night.pointLights <= 2);
   assert.ok((await pixels(phone)).ground > 8);

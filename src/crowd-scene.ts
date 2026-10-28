@@ -10,7 +10,7 @@ import { iceAt } from "./ice-rinks";
 import { crowdDetailBudget } from "./render-budget";
 import { aerialPose, figurePose } from "./figure-skating";
 import { hairGeometry, hairMaterial, hairStyles } from './hair';
-import { createSkateHelmet, attachProtectivePads, helmetShellGeometry, helmetLinerGeometry, padGeometry, FAIR_SKIN_TONES } from "./safety-gear";
+import { createSkateHelmet, attachProtectivePads, distantHelmetShellGeometry, distantHelmetLinerGeometry, distantPadGeometry, FAIR_SKIN_TONES } from "./safety-gear";
 
 const colors = [0xd58759, 0x799fb1, 0xb6a0bb, 0x71865d, 0xe0c271, 0x9ab1a2, 0xc27170, 0xd9d2bd];
 const skinColors = FAIR_SKIN_TONES;
@@ -96,11 +96,11 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   const limbs = instances(new THREE.CapsuleGeometry(1, 1, 2, 6), capacity * 8, new THREE.MeshStandardMaterial({ color: 0x344754, roughness: 0.9 }));
   const shoes = instances(new THREE.BoxGeometry(1, 1, 1), capacity * 2, dark);
   const iceBlades = instances(new THREE.BoxGeometry(1, 1, 1), capacity * 2, new THREE.MeshStandardMaterial({ color: 0xc3d9df, metalness: .75, roughness: .25 }));
-  const caps = instances(helmetShellGeometry, capacity, new THREE.MeshStandardMaterial({ roughness: 0.5 }));
-  const liners = instances(helmetLinerGeometry, capacity, dark);
+  const caps = instances(distantHelmetShellGeometry, capacity, new THREE.MeshStandardMaterial({ roughness: 0.5 }));
+  const liners = instances(distantHelmetLinerGeometry, capacity, dark);
   const distantHair=instances(hairGeometry(0,true),capacity,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85}));
   const padMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65 });
-  const kneePads = instances(padGeometry("knee"), capacity * 2, padMaterial), elbowPads = instances(padGeometry("elbow"), capacity * 2, padMaterial), wristPads = instances(padGeometry("wrist"), capacity * 2, padMaterial);
+  const kneePads = instances(distantPadGeometry("knee"), capacity * 2, padMaterial), elbowPads = instances(distantPadGeometry("elbow"), capacity * 2, padMaterial), wristPads = instances(distantPadGeometry("wrist"), capacity * 2, padMaterial);
   const shadowCanvas = document.createElement("canvas"); shadowCanvas.width = shadowCanvas.height = 32;
   const shadowContext = shadowCanvas.getContext("2d")!, gradient = shadowContext.createRadialGradient(16, 16, 1, 16, 16, 16);
   gradient.addColorStop(0, "rgba(12,24,26,.45)"); gradient.addColorStop(1, "rgba(12,24,26,0)");

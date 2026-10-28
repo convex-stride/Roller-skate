@@ -89,6 +89,7 @@ try {
   await page.locator('[data-quest="quest-riyadh-0-0"]').click();
   await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
   await page.locator("#quest-accept").click();
+  console.log(JSON.stringify(await page.evaluate(()=>({stage:'physical delivery route',rendering:window.__skate.state.rendering}))));
   for (let i = 0; i < 3; i++) {
     await skateToObjective(page); await page.locator("#quest-interact").click();
     assert.equal(await page.evaluate(() => window.__skate.state.quest.visited.length), i + 1);

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createWriteStream } from 'node:fs';
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
@@ -22,13 +23,14 @@ for (const [name, command, args] of checks) {
   const start = Date.now();
   const result = await new Promise(resolveResult => {
     let log = '', timedOut = false;
+    const live=createWriteStream(resolve(output,`${name}.log`));
     const child = spawn(command, args, { cwd: root, detached: true, env: { ...process.env,
       GAME_URL: process.env.GAME_URL || 'http://127.0.0.1:4173', LOW_GRAPHICS: '1', PHYSICS_TEST_DPR:process.env.PHYSICS_TEST_DPR||'.5', FLOW_TIMEOUT: '300000' }, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.stdout.on('data', d => { log += d; }); child.stderr.on('data', d => { log += d; });
+    child.stdout.on('data', d => { log += d;live.write(d); }); child.stderr.on('data', d => { log += d;live.write(d); });
     const killGroup = () => { try { process.kill(-child.pid, 'SIGTERM'); } catch {} };
     const timer = setTimeout(() => { timedOut = true; killGroup(); }, Number(process.env.SUITE_TIMEOUT || 900000));
     child.on('error', e => { log += String(e); });
-    child.on('close', code => { clearTimeout(timer); killGroup(); resolveResult({ name, passed: code === 0 && !timedOut, code, timedOut, seconds: Math.round((Date.now() - start) / 1000), log }); });
+    child.on('close', code => { clearTimeout(timer); killGroup(); live.end(()=>resolveResult({ name, passed: code === 0 && !timedOut, code, timedOut, seconds: Math.round((Date.now() - start) / 1000), log })); });
   });
   await writeFile(resolve(output, `${name}.log`), result.log);
   console.log(`${result.passed ? 'PASS' : 'FAIL'} ${name} (${result.seconds}s)${result.passed ? '' : '\n' + result.log.slice(-2200)}`);
