@@ -4,3 +4,7 @@ test-results/
 playwright-report/
 releases/
 *.log
+.native-build/
+.local-signing/
+*.jks
+*.keystore

@@ -2,11 +2,12 @@ import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 },deviceScaleFactor:Number(process.env.PHYSICS_TEST_DPR||1) });
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
+  if(process.env.LOW_GRAPHICS){await page.locator('#lobby-settings').click({timeout:90000});await page.locator('#quality').selectOption('0.5');await page.locator('#settings-apply').click();await page.locator('#settings-back').click();}
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   for (const [id, name, height] of [["dock", "Container hop", 1.8], ["garden", "Rooftop leap", 3]]) {
     await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: new RegExp(`^Ride: ${name}`) }).click();

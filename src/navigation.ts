@@ -15,6 +15,7 @@ import { landmarks } from "./city-profile";
 import { spots, courses } from "./spots";
 import { races } from "./races";
 import { iceRinks } from "./ice-rinks";
+import { culturePlaces } from './culture';
 export type Point = { x: number; z: number };
 export type Goal = Point & { label: string };
 const cell = 10;
@@ -232,7 +233,7 @@ export class NavigationMap {
             continue;
           for (const road of streets(x, z, city))
             rect(road.x, road.z, road.w, road.d, city === "gdansk" ? "#77867a" : "#717879");
-          for (const site of districtSites(x, z, city)) rect(site.x, site.z, site.size, site.size, site.theme === "garden" || site.theme === "oasis" ? "#648367" : site.theme === "art" ? "#688f96" : city === "gdansk" ? "#8b8469" : "#a58c61");
+          for (const site of districtSites(x, z, city)) rect(site.x, site.z, site.size, site.size, site.green ? "#648367" : site.theme === "art" ? "#688f96" : city === "gdansk" ? "#8b8469" : "#a58c61");
           for (const b of buildings(x, z, city)) {
             rect(b.x + 1, b.z + 1, b.w, b.d, "#192b2b");
             rect(b.x, b.z, b.w, b.d, city === "gdansk" ? "#98a99a" : "#b5aa87");
@@ -250,6 +251,13 @@ export class NavigationMap {
       ctx.fillStyle = spot.city === "gdansk" ? "#ffaa76" : "#93e6d1";
       ctx.beginPath(); ctx.arc(x, y, large ? 5 : 7, 0, Math.PI * 2); ctx.fill();
       if (large) { ctx.font = "bold 9px Arial"; ctx.fillText(spot.name, x + 8, y + 3); }
+    }
+    for(const place of culturePlaces) {
+      if(!large&&Math.hypot(place.x-s.position.x,place.z-s.position.z)>this.radius*1.6)continue;
+      if(large&&this.cityFocus&&place.city!==this.cityFocus)continue;
+      const [x,y]=project(place.x,place.z);ctx.fillStyle=place.kind==='museum'?'#e4b4e7':place.kind==='garden'?'#9fda8e':'#e9a972';
+      ctx.fillRect(x-3,y-3,6,6);
+      if(large&&this.cityFocus){ctx.font='9px Arial';ctx.fillText(place.label,x+6,y-4);}
     }
     for (const r of iceRinks) {
       rect(r.x, r.z, 72, 88, "#526c7a"); rect(r.x, r.z, 30, 60, "#b9e6f1");

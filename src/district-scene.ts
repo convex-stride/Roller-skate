@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { districtSites, type City } from "./world";
 import { themeNames, type DistrictTheme, type DistrictProp } from "./district-content";
 import { sign, surface, type StreetKit } from "./environment";
+import { buildMuseum, parkGrass } from './museum-scene';
 
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 export function decorateDistrict(group: THREE.Group, cx: number, cz: number, city: City, k: StreetKit, buildBank: (group: THREE.Group, p: DistrictProp) => void) {
@@ -14,14 +15,22 @@ export function decorateDistrict(group: THREE.Group, cx: number, cz: number, cit
       m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; m.depthWrite = false; materials.set(key, m);
     }
     const patch = k.box(group, site.x, 0.026, site.z, site.size, 0.004, site.size, colors[site.theme]); patch.material = materials.get(key)!;
-    for (const side of [-1, 1]) {
+    if(site.green) {
+      patch.material=parkGrass(city);
+      for(const side of [-1,1]) {
+        k.box(group,site.x+side*(site.size/4+.75),.04,site.z,site.size/2-1.5,.012,3,0xc7c7a9);
+      }
+      k.box(group,site.x,.04,site.z,3,.012,site.size,0xc7c7a9);
+    }
+    if(!site.green) for (const side of [-1, 1]) {
       k.box(group, site.x + side * Math.min(4.5, site.size / 2 - 1), 0.036, site.z, 0.14, 0.012, site.size - 0.5, historic ? 0xd3d0b3 : 0xe8d1a2);
       k.box(group, site.x, 0.036, site.z + side * Math.min(4.5, site.size / 2 - 1), site.size - 0.5, 0.012, 0.14, historic ? 0xd3d0b3 : 0xe8d1a2);
     }
     for (const p of site.props) {
-      if (p.kind === "bank") {
+      if(p.kind==='museum') {buildMuseum(group,p,city,k);continue;}
+      if (p.kind === "bank" || p.kind === 'quarter' || p.kind === 'funbox') {
         buildBank(group, p);
-        for (const side of [-1, 1]) k.box(group, p.x + side * (p.w / 2 - 0.16), p.h / 2 + 0.03, p.z, 0.12, 0.025, Math.hypot(p.d, p.h), historic ? 0x8dd8db : 0xf0c581, false, -Math.atan2(p.h - 0.015, p.d));
+        if(p.kind==='bank') for (const side of [-1, 1]) k.box(group, p.x + side * (p.w / 2 - 0.16), p.h / 2 + 0.03, p.z, 0.12, 0.025, Math.hypot(p.d, p.h), historic ? 0x8dd8db : 0xf0c581, false, -Math.atan2(p.h - 0.015, p.d));
         continue;
       }
       if (p.kind === "rail") { k.rail(group, p.x, p.z, p.d); continue; }

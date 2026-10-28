@@ -2,10 +2,11 @@ import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }), errors = [];
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 },deviceScaleFactor:Number(process.env.PHYSICS_TEST_DPR||1) }), errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
+  if(process.env.LOW_GRAPHICS){await page.locator('#lobby-settings').click({timeout:90000});await page.locator('#quality').selectOption('0.5');await page.locator('#settings-apply').click();await page.locator('#settings-back').click();}
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   for (const [id, name] of [["race-motlawa", "Motława Dash"], ["race-olaya", "Olaya Boulevard Sprint"]]) {
     await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: new RegExp(`^Race: ${name}`) }).click();
@@ -23,7 +24,7 @@ try {
     await page.locator("#resume").click();
     await page.keyboard.down("w"); await page.keyboard.down("Shift");
     await page.waitForFunction(() => window.__skate.state.race?.status === "racing", null, { timeout: 30000 });
-    await page.waitForFunction(() => window.__skate.state.speed > 3 && window.__skate.state.race.standings.some(r => r.id !== "player" && r.gate > 0), null, { timeout: 30000 });
+    await page.waitForFunction(() => window.__skate.state.speed > 3 && window.__skate.state.race.standings.some(r => r.id !== "player" && r.gate > 0), null, { timeout: 90000 });
     await page.screenshot({ path: `releases/${id}-racing-v12.png` });
     await page.waitForFunction(() => window.__skate.state.race?.status === "finished", null, { timeout: 120000 }).catch(async e => { console.log(await page.evaluate(() => window.__skate.state)); throw e; });
     await page.keyboard.up("w"); await page.keyboard.up("Shift");

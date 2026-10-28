@@ -1,0 +1,37 @@
+name: Download builds
+on:
+  workflow_dispatch:
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+      - run: npm run package:windows
+      - name: Restore preview signing key
+        uses: actions/cache@v4
+        with:
+          path: .local-signing/android-preview.jks
+          key: android-preview-signing-v1
+      - run: npm run package:android
+      - run: npm run test:downloads
+      - uses: actions/upload-artifact@v4
+        with:
+          name: layans-skate-downloads
+          path: |
+            releases/layans-skate-*-windows-x64.zip
+            releases/layans-skate-*-android.apk
+            releases/layans-skate-v*.zip
+          retention-days: 14

@@ -3,6 +3,10 @@ import { Sky } from "three/addons/objects/Sky.js";
 import { cityReflections, balticFoliage } from "./world-art";
 import { SpawnDeck, type FreeSpawn } from "./spawn-points";
 import { createRidePresentation } from "./ride-presentation";
+import { FrameBudget } from "./frame-budget";
+import { culturePlaces } from './culture';
+import { createMuseumUI } from './museum-ui';
+import { museumGeometries } from './museum-scene';
 import { batchGroup } from "./instance-batches";
 import { LoveFireworks } from "./fireworks";
 import { NightLighting, nightGeometries } from "./night";
@@ -61,6 +65,7 @@ import "./races.css";
 import "./quests.css";
 import "./companion.css";
 import "./ice.css";
+import './crowd-controls.css';
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const uiArrow =
@@ -72,7 +77,7 @@ app.innerHTML = `<canvas id="scene" aria-label="Layan's Skate skating world"></c
 <div class="event hidden" id="event"></div><div id="toast" class="toast" role="status"></div>
 <div class="hint" id="hint"><kbd>WASD</kbd> skate &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>E</kbd> rail assist &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause</div>
 <div class="map-wrap"><canvas id="minimap" width="370" height="200"></canvas><small>GDANSK — WORLD LINK — RIYADH</small></div><div id="debug" class="debug hidden"></div></div>
-${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.23 / RAIL FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
+${menus.replaceAll("↗", uiArrow).replaceAll("V0.3 / LOBBY UPDATE", "V0.24 / OFFLINE & FLOW").replaceAll("An original inline skating experiment. Original procedural artwork and synthesized skate audio.", "Original city artwork and skating systems. Rider anatomy adapted from MakeHuman core assets (CC0).")}
 <div id="help" class="overlay hidden"><div class="panel"><div class="eyebrow">Find your flow</div><h2>Learn the streets.</h2><div class="controls"><div><b>W / ↑ · S / ↓</b>Push / friction brake</div><div><b>A D / ← →</b>Carve left / right</div><div><b>Space</b>Jump on press · hold for height</div><div><b>Shift</b>Crouch, reduce air resistance</div><div><b>Land on a rail</b>Auto grind · Space pop off · S exit</div><div><b>Q · G</b>Hold manual · hold powerslide</div><div><b>Tap Z / C</b>180 left / right · tap twice for 360</div><div><b>Tap F / X</b>Safety grab / mute tweak · soul / royale on rails</div><div><b>Tap V / B</b>Spread eagle / stalefish grab in air</div><div><b>Mouse drag · H</b>Look around · controls</div><div><b>N · Ride with a local</b>Invite a nearby skater for 45 seconds</div><div><b>Enter · Race flag</b>Join a nearby race or event</div><div><b>R · M · Escape</b>Recover · map · pause</div><div><b>Controller</b>Left stick roll/steer · right stick look</div><div><b>Controller tricks</b>A jump · LB grind · RB manual · X grab<br>LT/RT tap 180 · left stick click slide · Y event · B recover · Start pause</div></div><p>Press Space to take off immediately. Hold briefly for a higher arc. Tap Z or C during the jump, then F or X to add style. A second spin tap adds another 180°. Jump onto a rail while moving along it to lock in automatically. Hold E for extra catch assistance. Space pops off, S releases; reaching the end also releases. F and X switch grind style. Land tricks to score; coast briefly to bank a combo.</p><p class="notice">Gravity: 9.81 m/s² · Rider mass: 75 kg · Drag, rolling resistance, lateral grip and rigid-body collisions</p><button class="primary" id="help-close">Got it</button></div></div>
 <div id="map" class="overlay hidden"><div class="panel map-panel"><div class="eyebrow">One world, two perspectives</div><h2>Your next line.</h2><canvas class="map-large" id="world-map" width="900" height="420"></canvas><p class="map-label">Gdańsk ← skate through World Link → Riyadh. Choose an event below to travel to its starting point.</p><div class="challenge-list" id="challenge-list"></div><div class="actions"><button class="primary" id="map-close">Back to skating</button></div></div></div>
 <div id="error" class="overlay hidden"><div class="panel"><h2>We couldn’t start the ride.</h2><p id="error-text"></p><button onclick="location.reload()">Try again</button></div></div>`;
@@ -182,8 +187,8 @@ async function boot() {
     antialias: !mobileDevice,
     powerPreference: "high-performance",
   });
-  let automaticQuality = true,
-    slowFrames = 0;
+  let automaticQuality = true;
+  const frameBudget = new FrameBudget();
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.75);
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
@@ -269,7 +274,7 @@ async function boot() {
   leafGeo.setIndex(leafIndices);
   leafGeo.computeVertexNormals();
   const foliage = balticFoliage();
-  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo, foliage.geometry, ...buildingGeometries, ...nightGeometries];
+  const sharedGeometries: THREE.BufferGeometry[] = [boxGeo, cylGeo, sphereGeo, leafGeo, foliage.geometry, ...buildingGeometries, ...nightGeometries, ...museumGeometries];
   const streetBankMeshes = new Map<string, THREE.BufferGeometry>();
   const collidersByGroup = new Map<THREE.Group, RAPIER.Collider[]>();
   function box(
@@ -366,6 +371,11 @@ async function boot() {
     box(horizon, x + 40, 18, 860, 2, 1.5, 2, 0x3b4a49);
   }
   const railGroups = new Map<THREE.Group, Rail[]>();
+  let cachedRails: Rail[] = [], railsDirty = true;
+  function currentRails() {
+    if (railsDirty) { cachedRails = [...railGroups.values()].flat(); railsDirty = false; }
+    return cachedRails;
+  }
   function rail(
     g: THREE.Group,
     x: number,
@@ -417,6 +427,7 @@ async function boot() {
     const a = railGroups.get(g) || [];
     a.push(r);
     railGroups.set(g, a);
+    railsDirty = true;
   }
   function tree(g: THREE.Group, x: number, z: number, city: City) {
     const trunk = cylinder(g, x, 2.8, z, city === "gdansk" ? 0.24 : 0.3, 5.6, 0x786b51);
@@ -460,7 +471,7 @@ async function boot() {
       streetDetails(g, cx, cz, city, kit);
       yield;
       decorateDistrict(g, cx, cz, city, kit, (group, p) => {
-        const data = streetBankGeometry(p), key = `${p.w}:${p.d}:${p.h}`;
+        const data = streetBankGeometry(p), key = `${p.kind}:${p.w}:${p.d}:${p.h}`;
         if (!streetBankMeshes.has(key)) {
           const local = streetBankGeometry({ ...p, x: 0, z: 0 }), geometry = new THREE.BufferGeometry();
           geometry.setAttribute("position", new THREE.BufferAttribute(local.vertices, 3)); geometry.setIndex(new THREE.BufferAttribute(local.indices, 1)); geometry.computeVertexNormals();
@@ -528,6 +539,7 @@ async function boot() {
           world.removeCollider(collider, true);
         collidersByGroup.delete(g);
         railGroups.delete(g);
+        railsDirty = true;
         scene.remove(g);
         g.traverse((o) => {
           if (o instanceof THREE.InstancedMesh) o.dispose();
@@ -610,7 +622,7 @@ async function boot() {
   };
   const localsButton = document.createElement("button");
   localsButton.id = "locals-ride";
-  el("spot-card").querySelector(".spot-actions")!.append(localsButton);
+  el("hud").append(localsButton);
   const crowdPlayer = () => ({ x: skater.body.translation().x, z: skater.body.translation().z, speed: skater.speed, heading: skater.heading, score: skater.banked + skater.combo });
   function inviteLocal() { toast(crowd.director.invite(crowdPlayer())); canvas.focus(); }
   localsButton.onclick = inviteLocal;
@@ -1038,6 +1050,7 @@ async function boot() {
       "map",
       "settings-screen",
       "wardrobe-screen",
+      "museum-panel",
     ].forEach((id) => el(id).classList.add("hidden"));
     playing = true;
     paused = false;
@@ -1051,7 +1064,7 @@ async function boot() {
   function pause() {
     if (!playing) return;
     if (
-      ["settings-screen", "wardrobe-screen", "menu", "help", "map"].some(
+      ["settings-screen", "wardrobe-screen", "menu", "help", "map", "museum-panel"].some(
         (id) => !el(id).classList.contains("hidden"),
       )
     )
@@ -1196,11 +1209,17 @@ async function boot() {
       )
       .join("");
   el("challenge-list").insertAdjacentHTML("afterbegin", races.map(r => `<button data-race="${r.id}">Race: ${r.name}<small>${r.city === "gdansk" ? "Gdańsk" : "Riyadh"} · ${r.laps === 1 ? "Sprint" : `${r.laps} laps`} · 3 rivals</small></button>`).join(""));
+  el('challenge-list').insertAdjacentHTML('afterbegin',culturePlaces.map(p=>`<button data-${p.kind}="${p.id}">${p.kind==='museum'?'Museum':p.kind==='garden'?'Green park':'Street stunts'}: ${p.label}<small>${p.city==='gdansk'?'Gdańsk':'Riyadh'} · ${p.kind==='museum'?'5 real artworks':p.kind==='garden'?'Trees, lawns & paths':'Curved ramps, funboxes & banks'}</small></button>`).join(''));
   el("challenge-list").onclick = (e) => {
     const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
     const destination = button ? destinationFor(button) : undefined;
     if (destination && !mapTravel && !e.altKey) { setDestination({ x: destination.x, z: destination.z, label: destination.label }, destination); return; }
     selectedDestination = null; el("map-selection").classList.add("hidden");
+    if(destination&&['museum','garden','playground'].includes(destination.kind)) {
+      stopRace();stopSpot();active=null;gate.visible=false;focusedQuest=null;waypoint=null;
+      skater.reset(destination.x,destination.z);skater.heading=0;safe={x:destination.x,z:destination.z};lookYaw=0;lookPitch=.1;
+      stream(true);closeMenus();snapCamera();toast(destination.label);return;
+    }
     const questButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-quest]");
     if (questButton) { visitQuest(quests.find(q => q.id === questButton.dataset.quest)!); return; }
     const parkButton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-park]");
@@ -1255,7 +1274,7 @@ async function boot() {
     });
   }
   refreshQuestList();
-  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["flip", "Flip challenges"], ["park", "Skate parks"], ["rink", "Ice arenas"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
+  el("challenge-list").insertAdjacentHTML("beforebegin", `<nav class="map-filters" aria-label="Map destinations">${[["all", "All"], ["quest", "Quests"], ["flip", "Flip challenges"], ["museum", "Art museums"], ["garden", "Green parks"], ["playground", "Street stunts"], ["park", "Skate parks"], ["rink", "Ice arenas"], ["race", "Races"], ["course", "Sessions"], ["landmark", "Landmarks"], ["event", "Events"]].map(([value, label]) => `<button data-map-filter="${value}" aria-pressed="${value === "all"}">${label}</button>`).join("")}</nav>`);
   document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(button => button.onclick = () => {
     mapFilter = button.dataset.mapFilter!;
     document.querySelectorAll<HTMLButtonElement>("[data-map-filter]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
@@ -1334,7 +1353,7 @@ async function boot() {
     el("pause-night").textContent = next.nightMode ? "Switch to day ☀" : "Switch to night ☾";
     crowd.setQuality(next.quality);
     automaticQuality = next.quality === "auto";
-    slowFrames = 0;
+    frameBudget.reset();
     renderer.setPixelRatio(
       (Math.min(devicePixelRatio, mobileDevice && next.quality === "auto" ? 1.25 : 1.5) * next.resolution) / 100,
     );
@@ -1420,6 +1439,7 @@ async function boot() {
     event: startNearby, figure: () => iceUI.open(),
     toast,
   });
+  const museumUI=createMuseumUI({pause:()=>{paused=true;touch.show(false);keys.clear();actions.clear();},resume:()=>{closeMenus();canvas.focus();}});
   if (touch.enabled) {
     el("help").querySelector(".controls")!.insertAdjacentHTML("afterbegin", "<div><b>Phone thumbstick</b>Up to push · sideways to turn · down to brake</div><div><b>Jump + tricks</b>Hold JUMP; tap 180, Grab or Tweak with another finger</div><div><b>More · drag view</b>Extra tricks and held moves · drag empty space to look</div>");
     el("help").querySelector("p")!.textContent = "Use both thumbs: keep pushing with the stick while you jump and tap tricks. Rails catch automatically. The More tray has spread eagle, stalefish, crouch, manual, slide and rail assist. Ride opens a nearby challenge; Map lets you choose any stunt spot. Portrait and landscape both work.";
@@ -1466,6 +1486,7 @@ async function boot() {
       return;
     if (e.code === "Escape") {
       e.preventDefault();
+      if(museumUI.opened){museumUI.close();return;}
       if (iceUI.opened) { iceUI.close(); canvas.focus(); return; }
       if (!el("settings-screen").classList.contains("hidden")) {
         settingsUI.close();
@@ -1750,7 +1771,7 @@ async function boot() {
       completedQuests: save.completedQuests ?? [],
       partner: companion.active ? companion.state.position : null,
       racers: raceSession?.rivals.map(r => ({ ...r.skater.body.translation() })) ?? [],
-      rails: [...railGroups.values()].flat(),
+      rails: currentRails(),
       goal,
     };
   }
@@ -1838,23 +1859,21 @@ async function boot() {
   let accumulator = 0,
     last = performance.now(),
     simTime = 0,
-    frames = 0,
+    nextHud = 0,
+    nextMinimap = 0,
     lastBanked = 0,
     fps = 60;
   function frame(now: number) {
     requestAnimationFrame(frame);
+    if (document.hidden) { last = now; accumulator = 0; return; }
     const frameDelta = Math.max(0, (now - last) / 1000);
     const elapsed = Math.min(frameDelta, 0.1);
     last = now;
-    if (automaticQuality) {
-      slowFrames = Math.max(0, slowFrames + (elapsed > 0.045 ? 1 : -0.4));
-      if (slowFrames > 6) {
-        automaticQuality = false;
-        crowd.setQuality("0.5");
-        renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.5);
-        renderer.shadowMap.enabled = false;
-        renderer.setSize(innerWidth, innerHeight);
-      }
+    if (automaticQuality && frameBudget.sample(frameDelta, !!pendingChunk)) {
+      crowd.setQuality(frameBudget.level >= 2 ? "0.5" : "auto");
+      renderer.setPixelRatio(Math.max(.4, Math.min(devicePixelRatio, mobileDevice ? 1.25 : 1.5) * preferences.resolution / 100 * frameBudget.scale));
+      renderer.shadowMap.enabled = preferences.shadows && !mobileDevice && frameBudget.level === 0;
+      renderer.setSize(innerWidth, innerHeight);
     }
     const c = controls();
     touch.show(playing && !paused);
@@ -1864,7 +1883,7 @@ async function boot() {
     if (!paused) {
       accumulator += elapsed;
       while (accumulator >= STEP) {
-        const rails = [...railGroups.values()].flat();
+        const rails = currentRails();
         skater.tick(raceSession?.run.locked ? idle() : c, rails);
         raceSession?.beforeStep();
         companion.tick(mapState().goal, !!raceSession);
@@ -1925,6 +1944,7 @@ async function boot() {
       );
     const p = interpolatedPosition,
       speed = skater.speed;
+    museumUI.update(p.x,p.z,playing,paused);
     skyDome.position.copy(camera.position);
     if (restorePartner && skater.grounded) { restorePartner = false; companion.call(); }
     if (dismissedQuest && Math.hypot(p.x - quests.find(q => q.id === dismissedQuest)!.anchor.x, p.z - quests.find(q => q.id === dismissedQuest)!.anchor.z) > 14) dismissedQuest = null;
@@ -1972,6 +1992,7 @@ async function boot() {
     updateSpotCard();
     updateRaceCard();
     updateQuestCard();
+    localsButton.hidden=!playing||paused||localsButton.disabled||!el('partner-panel').classList.contains('hidden')||mobileDevice&&['quest-card','spot-card','race-card','ice-card','ice-run-card'].some(id=>!el(id).classList.contains('hidden'));
     if (currentRink) for (const id of ["spot-card", "quest-card", "race-card"]) el(id).classList.add("hidden");
     if (!el("partner-panel").classList.contains("hidden")) for (const id of ["spot-card", "quest-card", "race-card", "ice-card", "ice-run-card"]) el(id).classList.add("hidden");
     const rideButton = document.querySelector<HTMLButtonElement>('#touch-controls [data-command="event"]');
@@ -2144,7 +2165,8 @@ async function boot() {
         0.1,
       );
     if (now > toastUntil) el("toast").classList.remove("visible");
-    {
+    if (now >= nextHud) {
+      nextHud = now + 50;
       el("speed").textContent = String(Math.round(speed * 3.6));
       el("charge").style.width = `${(skater.charge / 0.6) * 100}%`;
       el("stance").textContent = skater.grinding
@@ -2177,16 +2199,20 @@ async function boot() {
         ? `×${skater.multiplier.toFixed(2)} · ${skater.style.view.unique} styles${skater.style.view.bonus ? ` · +${skater.style.view.bonus} variety` : skater.style.view.freshness < 1 ? " · Mix it up!" : ""}`
         : "";
       el("trick").textContent = skater.liveTrick || (skater.combo ? skater.lastTrick : "");
-      el("hint").innerHTML =
+      const hint =
         skater.grinding ? "<kbd>W / ↑</kbd> keep speed · <kbd>Space</kbd> pop · <kbd>S</kbd> exit · <kbd>F / X</kbd> change grind style" : onIce ? "<kbd>I</kbd> Figure moves & games · <kbd>5–9</kbd> spins / glides · <kbd>0 / L / K</kbd> jumps · <kbd>S</kbd> cancel · <kbd>M</kbd> map" : nearestRace ? `<kbd>Enter / Y</kbd> JOIN ${nearestRace.name}` : nearest && !active && !raceSession
           ? `<kbd>Enter / Y</kbd> ${nearest.district} · ${nearest.kind.toUpperCase()}`
           : "<kbd>WASD</kbd> skate · <kbd>Space</kbd> jump · <kbd>1–4</kbd> flips · <kbd>Z/C</kbd> spin · <kbd>F</kbd> grab · <kbd>J</kbd> quests · <kbd>H</kbd> controls · <kbd>M</kbd> map";
+      if (el("hint").innerHTML !== hint) el("hint").innerHTML = hint;
       if (active) {
         el("event").classList.remove("hidden");
         el("event").innerHTML =
           `<small>${active.activity.kind.toUpperCase()}</small><strong>${active.activity.district}</strong>${active.activity.kind === "jam" ? `${Math.ceil(90 - active.time)}s left · ${skater.banked - active.scoreStart} banked points` : `${active.time.toFixed(1)}s · gate ${active.gate + 1}/5`}`;
       }
-      if (frames++ % 3 === 0) drawMap(el("minimap") as HTMLCanvasElement);
+      if (now >= nextMinimap && playing && !paused) {
+        nextMinimap = now + 100;
+        drawMap(el("minimap") as HTMLCanvasElement);
+      }
       fps = THREE.MathUtils.lerp(fps, 1 / Math.max(0.001, frameDelta), 0.1);
       el("debug").textContent =
         `${Math.round(fps)} fps · ${renderer.info.render.calls} calls\n${chunks.size} chunks · ${Math.round(renderer.info.render.triangles / 1000)}k tris\nx ${p.x.toFixed(1)} z ${p.z.toFixed(1)} y ${p.y.toFixed(2)}\n${skater.grounded ? "grounded" : "airborne"} · ${speed.toFixed(2)} m/s`;
@@ -2200,7 +2226,9 @@ async function boot() {
       }
       toast(`Combo banked · ${earned.toLocaleString()}`);
     }
-    renderer.render(scene, camera);
+    // The opaque art viewer is paused. Keep its last world frame while reading
+    // instead of spending GPU time drawing a scene covered by the collection.
+    if(!museumUI.opened) renderer.render(scene, camera);
   }
   window.addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight;
@@ -2258,6 +2286,7 @@ async function boot() {
           riderVertices: avatar.vertexCount,
           appearance: avatar.appearance,
           landmarks: cityLandmarks.length,
+          culture: { museums:culturePlaces.filter(p=>p.kind==='museum').length,greenParks:culturePlaces.filter(p=>p.kind==='garden').length,flowCourts:culturePlaces.filter(p=>p.kind==='playground').length,galleryOpen:museumUI.opened },
           surface: skater.surface,
           navigation: {
             cityFocus: navigation.cityFocus,
@@ -2289,6 +2318,8 @@ async function boot() {
           preferences: { ...preferences },
           rendering: {
             fps: Math.round(fps),
+            adaptiveLevel: frameBudget.level,
+            averageFrameMs: Math.round(frameBudget.averageMs * 10) / 10,
             drawCalls: renderer.info.render.calls,
             pixelRatio: renderer.getPixelRatio(),
             shadows: renderer.shadowMap.enabled,

@@ -2,6 +2,34 @@
 
 A playable Three.js inline-skating prototype connecting procedural Gdańsk and Riyadh.
 
+## Windows and Android downloads (0.24)
+
+`releases/layans-skate-0.24.0-windows-x64.zip`: extract the whole ZIP and run **Layans Skate.exe**. Keep its other files together. Windows 10/11 x64; **F11** toggles fullscreen. The portable preview is unsigned. Settings and progress stay in the app's Windows user profile.
+
+`releases/layans-skate-0.24.0-android.apk`: install on Android 8.0 or newer with a current Android System WebView and OpenGL ES 3 support. Android may ask to allow installation from the browser/file manager used to open the APK. Touch controls support portrait and landscape. The app bundles the full game, uses no network permission, and works offline. App switching pauses play; the system Back action opens/closes game menus. Saves stay in the app's private WebView storage. Browser, Windows and Android saves are separate. Uninstalling clears app saves.
+
+Both are preview builds, not Microsoft Store/Google Play releases. APK signatures and package metadata are checked during packaging. Windows serves the game at a stable private `layans://game/` origin; Android uses a virtual asset origin. Chromium checks the exact offline payload using equivalent secure origins (the cloud browser blocks direct file URLs and cannot register Electron protocols); this does not replace testing on physical Windows/Android devices.
+
+Build the web game with `npm run package`, then `npm run package:windows` (downloads Electron 45.1.0) and `npm run package:android`. Native scripts require Node 22.12+, `zip` and `unzip`; Android also requires JDK 21 and `ANDROID_SDK_ROOT` pointing to an SDK with `platforms;android-35` and `build-tools;35.0.0` installed. No Gradle or remote runtime assets are needed. In proxy-only environments, use `ELECTRON_GET_USE_PROXY=1` for the Windows package command.
+
+The Android build creates a stable local preview signing key in `.local-signing/`, which is ignored by git. Keep this key if you want future APKs to install over the existing app. For your own release key set `LAYANS_ANDROID_KEYSTORE`, `LAYANS_ANDROID_KEY_ALIAS` and `LAYANS_ANDROID_KEY_PASSWORD`. Do not commit keys or passwords. The optional **Download builds** GitHub Actions workflow builds these packages on demand; its preview-key cache is separate from your local key and is not a durable release signing setup.
+
+## Museums, green parks and street flow courts (0.24)
+
+The map now has **Art museums**, **Green parks** and **Street stunts** filters. There are 34 small fictional art pavilions (21 Gdańsk, 13 Riyadh), 32 marked green parks and 30 marked flow courts. Many more garden patches and skate obstacles fill the surrounding streamed courts. Gdańsk galleries use Baltic brick and cool timber; Riyadh galleries use warm plaster and shaded courtyard roofs. Gallery interiors and eight-metre doorways share their visible wall geometry with collision and navigation, while existing quest entrances and original bank locations remain open.
+
+Every pavilion displays five genuine public-domain artworks: Van Gogh’s *The Starry Night* (a cropped detail), Hokusai’s *The Great Wave off Kanagawa*, Kandinsky’s *Composition VII*, Munch’s *The Scream*, and Picabia’s *Udnie*. Approach a gallery and choose **View paintings** for the full image, title, artist and notes; Back to skating or Escape resumes play. The viewer supports phone portrait/landscape and keyboard focus. Reproductions, credits and labels are bundled offline; source details are in `src/assets/art/README.md` and `public/ARTWORK_CREDITS.txt`.
+
+Green spaces have lawns, crossing paths, trees and existing seating/planting. Street courts add closed, physically colliding curved quarter pipes and two-sided funboxes alongside the original banks and grind rails. Their visible and collision meshes use the same profile. Map routes and Taqee avoid their obstacle footprints.
+
+Uncovered NPCs now have layered crops, curls, bobs, braided napes and swept waves beneath their helmets, with lighter instanced hair at a distance. Taqee has dark swept locks and a tapered nape. Layan retains her hijab and pirate-style bandana under her helmet; all protective equipment remains in place.
+
+## Smoother frame pacing (0.24)
+
+Auto graphics now adjusts resolution gradually after sustained slow frames and restores detail only after a long stable interval. It ignores startup/streaming spikes, uses a bounded scale, lowers crowd detail and turns off shadows under pressure, and leaves manual settings alone. Applying settings resets adaptation. The HUD updates at 20 Hz and minimap at 10 Hz while physics remains fixed at 60 Hz with interpolated positions. Rail arrays are cached until world geometry changes, repeated help HTML is reused, inactive touch controls stop resetting every frame, and hidden apps stop rendering. These changes reduce avoidable work; frame rate still depends on the device, graphics settings and nearby scenery.
+
+`npm run test:all` runs the unit suite and every browser smoke script sequentially against the production preview on port 4173. It writes each log and `results.json` under `test-results/full-suite`. Set `TEST_ONLY=unit,rails-smoke` to rerun specific suites. The long quest/companion/race flows accept `PHYSICS_TEST_DPR` (the runner uses 0.5) to lower rendering cost while preserving their viewport, physical movement, checkpoints and assertions; normal layout/visual suites retain their configured density. Browser tests use Chromium's software renderer in this cloud environment, so their frame rates are not a hardware performance benchmark.
+
 ## Run
 
 Requires Node.js 22.12+ (validated with Node 24).
@@ -21,7 +49,7 @@ npm run preview
 
 The production build uses relative asset paths for itch.io. ZIP the contents of `dist`, with `index.html` at the archive root, and upload as an HTML5 game. Publication has not been performed.
 
-For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Railflow.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.23.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
+For a self-contained HTML build and an updated itch.io ZIP, run `npm run package` (requires the `zip` utility). This writes `releases/Layans-Skate-Railflow.html` and older HTML filename aliases, with JavaScript, styles, physics WASM, rider mesh, and license notices embedded, plus `releases/layans-skate-v0.24.zip`. The HTML version is suitable for hosts that preview individual files. If a chat viewer itself fails, download that HTML and open it in a compatible desktop browser instead.
 
 Embedded previews may deny controller access through Permissions Policy. The game detects that restriction and keeps keyboard controls working; it also supports session-only play when sandboxed storage is unavailable. `npm run test:embed`, against the production preview on port 4173, verifies keyboard movement and pause in both a restricted iframe and an opaque single-file sandbox. The exact chat application's visualization wrapper is not accessible from this repository.
 

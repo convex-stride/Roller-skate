@@ -1189,8 +1189,15 @@ body.high-contrast .map-wrap {
     max-width: none;
   }
   .session-summary {
-    display: none;
+    display: block;
+    padding: 12px;
   }
+  .session-summary > h3,
+  .session-summary > p,
+  .session-summary > .summary-stat,
+  .session-summary > .tiny-kicker:first-child { display: none; }
+  .travel-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+  #rail-practice { grid-column: 1 / -1; min-height: 44px; }
   .pause-nav button {
     padding: 15px;
   }

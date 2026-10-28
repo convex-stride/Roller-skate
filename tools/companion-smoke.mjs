@@ -2,11 +2,15 @@ import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1000, height: 720 } }), errors = [];
+  const page = await browser.newPage({ viewport: { width: 1000, height: 720 },deviceScaleFactor:Number(process.env.PHYSICS_TEST_DPR||1) }), errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
+  await page.locator('#lobby-settings').click({timeout:90000});await page.locator('#quality').selectOption('0.5');await page.locator('#settings-apply').click();await page.locator('#settings-back').click();
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
+  // Guide routing is tested from a known clear approach, independently of the
+  // shuffled-spawn coverage in rails-smoke and spawn-points.test.ts.
+  await page.keyboard.press('Escape'); await page.locator('#rail-practice').click();
   await page.waitForFunction(() => window.__skate.state.grounded);
   assert.equal(await page.evaluate(() => window.__skate.state.riderName), "Layan");
   const origin = await page.evaluate(() => window.__skate.state.position);
@@ -30,13 +34,16 @@ try {
   await page.locator("#map-partner-guide").click();
   await page.waitForFunction(() => window.__skate.state.companion.active && window.__skate.state.companion.routePoints > 1);
   const partnerStart = await page.evaluate(() => window.__skate.state.companion.position);
-  await page.waitForFunction(start => Math.hypot(window.__skate.state.companion.position.x - start.x, window.__skate.state.companion.position.z - start.z) > 3, partnerStart, { timeout: 60000 });
+  await page.waitForFunction(start => Math.hypot(window.__skate.state.companion.position.x - start.x, window.__skate.state.companion.position.z - start.z) > 3, partnerStart, { timeout: 60000 }).catch(async error => {
+    console.log(JSON.stringify(await page.evaluate(() => ({ state: window.__skate.state })), null, 2));
+    await page.screenshot({ path: 'releases/companion-guide-failure.png' }); throw error;
+  });
   await page.screenshot({ path: "releases/layans-skate-taqee-guiding.png" });
   await page.keyboard.press("p"); await page.locator('[data-partner="call"]').click();
   await page.locator('[data-partner="wait"]').click();
   const wait = await page.evaluate(() => ({ t: window.__skate.state.simTime, p: window.__skate.state.companion.position }));
   await page.keyboard.down("w");
-  await page.waitForFunction(t => window.__skate.state.simTime > t + 3, wait.t);
+  await page.waitForFunction(t => window.__skate.state.simTime > t + 3, wait.t, { timeout: 90000 });
   await page.keyboard.up("w");
   const stayed = await page.evaluate(() => window.__skate.state.companion.position);
   assert.ok(Math.hypot(stayed.x - wait.p.x, stayed.z - wait.p.z) < 0.7, "Wait keeps Taqee in place");

@@ -9,6 +9,7 @@ import { RAPIER } from "./physics";
 import { iceAt } from "./ice-rinks";
 import { crowdDetailBudget } from "./render-budget";
 import { aerialPose, figurePose } from "./figure-skating";
+import { hairGeometry, hairMaterial, hairStyles } from './hair';
 import { createSkateHelmet, attachProtectivePads, helmetShellGeometry, helmetLinerGeometry, padGeometry, FAIR_SKIN_TONES } from "./safety-gear";
 
 const colors = [0xd58759, 0x799fb1, 0xb6a0bb, 0x71865d, 0xe0c271, 0x9ab1a2, 0xc27170, 0xd9d2bd];
@@ -57,6 +58,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   iceSkateGeometry.setAttribute("color", new THREE.BufferAttribute(iceBootColors, 3));
   const iceBootMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .4, roughness: .35 });
   let detailBudget = crowdDetailBudget(mobile, "auto");
+  hairStyles.forEach((_,i)=>hairGeometry(i));hairGeometry('taqee');
   const rigs = Array.from({ length: mobile ? 6 : 12 }, () => {
     const group = new THREE.Group(), body = clone(source); group.add(body); scene.add(group);
     let mesh!: THREE.SkinnedMesh; body.traverse(o => { if (o instanceof THREE.SkinnedMesh) mesh = o; });
@@ -68,6 +70,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     const arms = [["Skeleton_arm_joint_L__4_", "Skeleton_arm_joint_L__3_", "Skeleton_arm_joint_L__2_"], ["Skeleton_arm_joint_R", "Skeleton_arm_joint_R__2_", "Skeleton_arm_joint_R__3_"]].map(names => names.map(bone));
     const head = bone("Skeleton_neck_joint_2");
     const helmet = createSkateHelmet(colors[0]); helmet.group.position.set(0, 1.69, -0.005); group.add(helmet.group); head.attach(helmet.group);
+    const hair=new THREE.Mesh(hairGeometry(0),hairMaterial(0));hair.position.set(0,1.66,0);group.add(hair);head.attach(hair);
     const guards = attachProtectivePads(group, legs, arms);
     const eyes = new THREE.Group(); group.add(eyes);
     for (const anchor of (mesh.userData.eyeAnchors || []) as number[][]) {
@@ -80,7 +83,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
     const phone = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.12, 0.012), dark); group.add(phone);
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.032, 0.1, 8), white); group.add(cup);
     group.visible = false;
-    return { group, mesh, poses, legs, arms, boots, helmet, guards, head, body, phone, cup, assigned: -1 };
+    return { group, mesh, poses, legs, arms, boots, helmet, hair, guards, head, body, phone, cup, assigned: -1 };
   });
   const capacity = director.budget;
   const distant = new THREE.Group(); scene.add(distant);
@@ -95,6 +98,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   const iceBlades = instances(new THREE.BoxGeometry(1, 1, 1), capacity * 2, new THREE.MeshStandardMaterial({ color: 0xc3d9df, metalness: .75, roughness: .25 }));
   const caps = instances(helmetShellGeometry, capacity, new THREE.MeshStandardMaterial({ roughness: 0.5 }));
   const liners = instances(helmetLinerGeometry, capacity, dark);
+  const distantHair=instances(hairGeometry(0,true),capacity,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85}));
   const padMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65 });
   const kneePads = instances(padGeometry("knee"), capacity * 2, padMaterial), elbowPads = instances(padGeometry("elbow"), capacity * 2, padMaterial), wristPads = instances(padGeometry("wrist"), capacity * 2, padMaterial);
   const shadowCanvas = document.createElement("canvas"); shadowCanvas.width = shadowCanvas.height = 32;
@@ -128,6 +132,7 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
   function animateRig(rig: typeof rigs[number], p: CrowdPerson, player: CrowdPlayer) {
     const palette = p.id % colors.length, onIce = !!iceAt(p.x, p.z), skating = p.role === "skater" || onIce;
     rig.assigned = p.id; rig.group.visible = true; rig.mesh.geometry = p.name === "Taqee" ? partnerGeometry : geometries[palette]; rig.helmet.setColor(p.name === "Taqee" ? colors[1] : colors[palette]);
+    rig.hair.geometry=hairGeometry(p.name==='Taqee'?'taqee':p.id%hairStyles.length);rig.hair.material=hairMaterial(p.name==='Taqee'?0:p.id);
     rig.poses.forEach(({ b, q, p }) => { b.quaternion.copy(q); b.position.copy(p); });
     const height = p.name === "Taqee" ? 1.05 : 0.94 + (p.id % 5) * 0.025, stride = Math.sin(p.phase), moving = Math.min(1, p.speed / (skating ? 2 : 0.8));
     rig.group.position.set(p.x, p.ground, p.z); rig.group.rotation.y = p.heading + (p.airRotation ?? 0); rig.group.scale.set(1, height, 1);
@@ -199,6 +204,8 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       for (const person of remaining) { const rig = rigs.find(r => !r.group.visible)!; animateRig(rig, person, player); }
       blended.forEach((p, i) => {
         place(shadows, i, new THREE.Vector3(p.x, p.ground + 0.012, p.z), [1, 1, 1], p.heading);
+        distantHair.setColorAt(i,new THREE.Color(p.name==='Taqee'?0x29201b:[0x29201b,0x483024,0x755037,0xb18a56,0x342723,0x50392c][p.id%6]));
+        if(assigned.has(p.id))distantHair.setMatrixAt(i,zero);else place(distantHair,i,point(p,0,1.66,0),[1,1,1],p.heading);
         if (assigned.has(p.id)) { torso.setMatrixAt(i, zero); heads.setMatrixAt(i, zero); caps.setMatrixAt(i, zero); liners.setMatrixAt(i, zero); for (let n = 0; n < 8; n++) limbs.setMatrixAt(i * 8 + n, zero); for (let n = 0; n < 2; n++) { shoes.setMatrixAt(i * 2 + n, zero); iceBlades.setMatrixAt(i * 2 + n, zero); kneePads.setMatrixAt(i * 2 + n, zero); elbowPads.setMatrixAt(i * 2 + n, zero); wristPads.setMatrixAt(i * 2 + n, zero); } return; }
         const color = new THREE.Color(colors[p.id % 8]), skin = new THREE.Color(skinColors[p.id % 6]);
         torso.setColorAt(i, color); heads.setColorAt(i, skin); caps.setColorAt(i, color);
@@ -224,10 +231,12 @@ export async function createCrowd(scene: THREE.Scene, world: RAPIER.World, playe
       for (const m of [torso, heads, caps, liners, shadows]) m.count = blended.length;
       limbs.count = blended.length * 8; shoes.count = blended.length * 2; iceBlades.count = blended.length * 2;
       for (const m of [kneePads, elbowPads, wristPads]) m.count = blended.length * 2;
-      for (const m of [torso, heads, caps, liners, limbs, shoes, iceBlades, kneePads, elbowPads, wristPads, shadows]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+      distantHair.count=blended.length;
+      for (const m of [torso, heads, caps, liners, distantHair, limbs, shoes, iceBlades, kneePads, elbowPads, wristPads, shadows]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     },
     get diagnostics() { const partnerRig = rigs.find(r => r.assigned === 21001 && r.group.visible); return { visible: visible.length, detailBudget: detailBudget.count, detailed: rigs.filter(r => r.group.visible).length, residents: director.people.length, reactions: director.reactions, yields: director.yields, following: director.follower?.name ?? null,
       appearance: { partnerSkates: partnerRig ? partnerRig.boots[0].group.geometry === iceSkateGeometry ? "ice blades" : "inline wheels" : null, skinTone: "fair", skinPalette: [...skinColors], helmet: "vented skate helmet with chin straps", guards: ["knee", "elbow", "wrist"], appliesTo: "all residents, quest givers, racers and Taqee", detailedGuardMeshes: rigs.filter(r => r.group.visible).reduce((n, r) => n + r.guards.length, 0), distantGuardInstances: [kneePads, elbowPads, wristPads].reduce((n, m) => n + m.count, 0) },
+      hair: { styles:[...hairStyles],partner:partnerRig?'dark swept waves with tapered nape':null,detailed:rigs.filter(r=>r.group.visible).length,instanced:distantHair.count },
       actions: visible.reduce((counts, p) => { counts[p.action] = (counts[p.action] || 0) + 1; return counts; }, {} as Record<string, number>),
       sample: visible.slice(0, 12).map(p => ({ id: p.id, x: p.x, z: p.z, role: p.role, action: p.action, speed: p.speed, traveled: p.traveled })) }; },
   };

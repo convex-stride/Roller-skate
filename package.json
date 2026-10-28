@@ -1,12 +1,18 @@
 {
   "name": "layans-skate",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "package": "npm run build && node tools/package.mjs",
+    "package:windows": "node tools/package-native.mjs windows",
+    "package:android": "node tools/package-native.mjs android",
+    "test:all": "node tools/test-all.mjs",
+    "test:native": "node tools/native-smoke.mjs",
+    "test:downloads": "node tools/verify-downloads.mjs",
+    "test:culture": "node tools/culture-smoke.mjs",
     "test:embed": "node tools/embed-smoke.mjs",
     "test:menus": "node tools/menu-smoke.mjs",
     "test:navigation": "node tools/navigation-smoke.mjs",
@@ -37,10 +43,12 @@
     "three": "^0.183.0"
   },
   "devDependencies": {
+    "@electron/asar": "4.3.1",
+    "@electron/packager": "19.0.1",
+    "@playwright/test": "^1.58.2",
     "@types/three": "^0.183.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18",
-    "@playwright/test": "^1.58.2"
+    "vitest": "^4.0.18"
   }
 }

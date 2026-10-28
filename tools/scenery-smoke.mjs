@@ -13,6 +13,7 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage({
     viewport: { width: 1100, height: 760 },
+      deviceScaleFactor:Number(process.env.PHYSICS_TEST_DPR||1),
   });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -28,6 +29,13 @@ try {
   await page.getByRole("button", { name: /Apply changes/ }).click();
   await page.locator("#settings-back").click();
   await page.getByRole("button", { name: "Keep skating" }).click();
+  // Explicitly visit the canal approach; free-skate starts are now shuffled.
+  await page.keyboard.press("m"); await page.locator("#map-travel-mode").click();
+  await page.getByRole("button", { name: /^Explore: Żuraw/ }).click();
+  await page.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.queuedChunks === 0);
+  await page.keyboard.down("a");
+  await page.waitForFunction(() => window.__skate.state.heading > -0.085);
+  await page.keyboard.up("a");
   await mkdir(new URL("../releases/", import.meta.url), { recursive: true });
   await page.screenshot({ path: "releases/gdansk-streets.png" });
   await page.keyboard.down("w");
@@ -40,7 +48,7 @@ try {
   await page.waitForFunction(
     () => window.__skate.state.position.z > 125,
     null,
-    { timeout: 60000 },
+    { timeout: Number(process.env.FLOW_TIMEOUT || 120000) },
   );
   await page.keyboard.up("w");
   const crossing = await page.evaluate(() => window.__skate.state);
@@ -49,7 +57,7 @@ try {
     "the physical bridge must carry the skater across the canal",
   );
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Riyadh plaza" }).click();
+  await page.locator("#riyadh").click();
   await page.waitForFunction(() => window.__skate.state.grounded);
   await page.screenshot({ path: "releases/riyadh-streets.png" });
   assert.deepEqual(

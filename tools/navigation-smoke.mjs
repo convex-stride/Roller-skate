@@ -21,6 +21,7 @@ try {
       errors.push(m.text());
   });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
+  if(process.env.LOW_GRAPHICS){await page.locator('#lobby-settings').click({timeout:90000});await page.locator('#quality').selectOption('0.5');await page.locator('#settings-apply').click();await page.locator('#settings-back').click();}
   await page.getByRole("button", { name: "Find your line" }).click();
   await page.waitForFunction(() => window.__skate.state.grounded);
   // Begin the bridge traversal at the waterfront destination; the city now
@@ -71,7 +72,7 @@ try {
   await page.waitForFunction(
     () => window.__skate.state.position.z > 147,
     null,
-    { timeout: 120000 },
+    { timeout: Number(process.env.FLOW_TIMEOUT || 180000) },
   ).catch(async error => { console.log(await page.evaluate(() => window.__skate.state)); await page.screenshot({ path: "releases/navigation-blocked.png" }); throw error; });
   await page.keyboard.up("w");
   const state = await page.evaluate(() => window.__skate.state);

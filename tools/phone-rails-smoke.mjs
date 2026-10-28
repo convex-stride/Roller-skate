@@ -14,10 +14,13 @@ try{
  await p.waitForFunction(()=>window.__skate.state.position.z>4.5,undefined,{timeout:90000});
  const jump=await p.locator('.touch-jump').boundingBox(),jp={id:2,x:jump.x+jump.width/2,y:jump.y+jump.height/2};
  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[push,jp]});await p.waitForFunction(()=>!!window.__skate.state.grinding,undefined,{timeout:60000});
- await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[push]});
+ // CDP touchEnd lists the contacts being lifted, not the contacts to retain.
+ await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[jp]});
+ await p.waitForFunction(()=>window.__skate.state.touch.throttle>.8&&!window.__skate.state.touch.jump,undefined,{timeout:10000});
  const royale=await p.getByRole('button',{name:'Royale grind',exact:true}).boundingBox(),rp={id:2,x:royale.x+royale.width/2,y:royale.y+royale.height/2};
- await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[push,rp]});await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[push]});
- await p.waitForFunction(()=>window.__skate.state.grindStyle==='Royale grind'&&window.__skate.state.grindingDistance>3,undefined,{timeout:60000});
+ console.log(JSON.stringify(await p.evaluate(rp=>({phase:'before Royale',target:document.elementFromPoint(rp.x,rp.y)?.outerHTML,position:window.__skate.state.position,grinding:window.__skate.state.grinding,style:window.__skate.state.grindStyle,touch:window.__skate.state.touch}),rp)));
+ await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[push,rp]});await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[rp]});
+ await p.waitForFunction(()=>window.__skate.state.grindStyle==='Royale grind'&&window.__skate.state.grindingDistance>3,undefined,{timeout:60000}).catch(async error=>{console.log(JSON.stringify(await p.evaluate(()=>window.__skate.state)));await p.screenshot({path:'releases/phone-rail-failure.png'});throw error;});
  const s=await p.evaluate(()=>window.__skate.state);assert.ok(s.speed>1);assert.ok(s.railFlow.remaining>0);assert.ok(await p.locator('#rail-flow').isVisible());
  await p.screenshot({path:'releases/rail-flow-phone.png'});
  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[push,jp]});await p.waitForFunction(()=>!window.__skate.state.grinding&&window.__skate.state.verticalSpeed>2);

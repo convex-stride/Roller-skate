@@ -1,0 +1,15 @@
+LAYAN'S SKATE — TRAVELLING COLLECTION
+
+Real public-domain artworks, bundled as faithful reproductions for offline play:
+
+The Starry Night (detail) — Vincent van Gogh, 1889. The source is a cropped detail.
+The Great Wave off Kanagawa — Katsushika Hokusai, c. 1831.
+Composition VII — Wassily Kandinsky, 1913.
+The Scream — Edvard Munch, 1893.
+Udnie (Young American Girl; The Dance) — Francis Picabia, 1913.
+
+Original works: public domain in the United States and life-plus-70 countries.
+Source mirror: https://github.com/jcjohnson/fast-neural-style/tree/master/images/styles
+Mirror filenames: starry_night.jpg, wave.jpg, composition_vii.jpg, the_scream.jpg, udnie.jpg.
+Retrieved 28 October 2026. Images retained unchanged.
+The game museums are fictional pavilions, not reproductions of real institutions.

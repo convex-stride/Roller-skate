@@ -13,12 +13,17 @@ const browser = await chromium.launch({
 async function checkLitGround(page) {
   const lit = await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => {
     const canvas = document.querySelector("#scene"), gl = canvas.getContext("webgl2");
-    const pixels = new Uint8Array(64 * 32 * 4);
-    gl.readPixels(Math.floor(canvas.width / 2) - 32, Math.floor(canvas.height * .28), 64, 32, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    // Sample the same visible area at every adaptive resolution/DPR.
+    const w = Math.max(4, Math.round(canvas.width * .05)), h = Math.max(2, Math.round(canvas.height * .04));
+    const pixels = new Uint8Array(w * h * 4);
+    // The centre-bottom region contains Layan's dark trousers/skates; use the
+    // open paving to her left rather than treating her silhouette as unlit ground.
+    gl.readPixels(Math.floor(canvas.width * .25), Math.floor(canvas.height * .2), w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     let count = 0;
     for (let i = 0; i < pixels.length; i += 4) if (pixels[i] + pixels[i + 1] + pixels[i + 2] > 45) count++;
-    resolve(count / (64 * 32));
+    resolve(count / (w * h));
   })));
+  if (lit <= .6) await page.screenshot({ path: 'releases/cities-light-failure.png' });
   assert.ok(lit > .6, `Lit ground survives sky reflections (${lit})`);
 }
 try {
@@ -55,7 +60,7 @@ try {
     ["Kingdom Centre", "kingdom"],
     ["Al Faisaliyah", "faisaliyah"],
     ["Masmak", "masmak"],
-  ]) {
+  ].filter(() => !process.env.CITIES_PHONE_ONLY)) {
     await page.keyboard.press("m");
     await page.locator("#map-travel-mode").click();
     await page

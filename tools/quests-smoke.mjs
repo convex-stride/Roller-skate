@@ -36,10 +36,11 @@ async function skateToObjective(page) {
   } finally { await controls([]); }
 }
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }), errors = [];
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 },deviceScaleFactor:Number(process.env.PHYSICS_TEST_DPR||1) }), errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
+  if(process.env.LOW_GRAPHICS){await page.locator('#lobby-settings').click({timeout:90000});await page.locator('#quality').selectOption('0.5');await page.locator('#settings-apply').click();await page.locator('#settings-back').click();}
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
   await page.keyboard.press("j");
   await page.locator("#map-travel-mode").click();

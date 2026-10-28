@@ -6,7 +6,9 @@ try {
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
   await page.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
+  await page.locator('#lobby-settings').click({timeout:90000});await page.locator('#quality').selectOption('0.5');await page.locator('#settings-apply').click();await page.locator('#settings-back').click();
   await page.getByRole("button", { name: "Find your line" }).click({ timeout: 60000 });
+  await page.keyboard.press('Escape'); await page.locator('#rail-practice').click();
   await page.waitForFunction(() => window.__skate.state.crowd.visible > 30 && window.__skate.state.grounded);
   const first = await page.evaluate(() => window.__skate.state);
   assert.ok(first.crowd.detailed > 0 && first.crowd.detailed <= first.crowd.detailBudget);
@@ -22,6 +24,7 @@ try {
   await page.waitForFunction(() => window.__skate.state.crowd.reactions > 0 && window.__skate.state.grounded, null, { timeout: 60000 });
   await page.screenshot({ path: "releases/crowd-cheering-v11.png" });
   await page.keyboard.press("Escape"); await page.locator("#riyadh").click();
+  await page.keyboard.press('Escape'); await page.locator('#rail-practice').click();
   await page.waitForFunction(() => window.__skate.state.crowd.visible > 30 && window.__skate.state.crowd.following === null);
   await page.screenshot({ path: "releases/riyadh-residents-v11.png" });
   await page.keyboard.press("m"); await page.locator("#map-travel-mode").click(); await page.getByRole("button", { name: /^Ride: Rooftop leap/ }).click();
@@ -33,6 +36,7 @@ try {
   phone.on("pageerror", e => errors.push(e.message));
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
+  await phone.getByRole('button', { name: 'Pause game', exact: true }).tap(); await phone.locator('#rail-practice').tap();
   await phone.waitForFunction(() => window.__skate.state.crowd.visible > 20);
   const mobile = await phone.evaluate(() => window.__skate.state.crowd);
   assert.ok(mobile.visible <= 44 && mobile.detailed <= 10);

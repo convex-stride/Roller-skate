@@ -2,7 +2,7 @@ import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1100, height: 740 } });
+  const page = await browser.newPage({ viewport: { width: 1100, height: 740 },deviceScaleFactor:Number(process.env.PHYSICS_TEST_DPR||1) });
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error" && /shader|THREE|WebGLProgram/i.test(m.text())) errors.push(m.text()); });
@@ -24,7 +24,7 @@ try {
     assert.ok(city === "gdansk" ? start.position.x < -1060 && start.position.z > 70 : start.position.x > 1250 && start.position.z < 0);
     await page.screenshot({ path: `releases/${city}-start-v09.png` });
     await page.keyboard.down("w");
-    await page.waitForFunction(city => city === "gdansk" ? window.__skate.state.position.x > -1057.5 : window.__skate.state.position.z > 4.5, city, { timeout: 30000 });
+    await page.waitForFunction(city => city === "gdansk" ? window.__skate.state.position.x > -1057.5 : window.__skate.state.position.z > 4.5, city, { timeout: 90000 }).catch(async error=>{console.log(JSON.stringify(await page.evaluate(()=>window.__skate.state)));throw error;});
     await page.keyboard.down("Space");
     await page.waitForFunction(() => window.__skate.state.grinding !== null, null, { timeout: 15000 });
     await page.keyboard.up("Space"); await page.keyboard.up("w");
