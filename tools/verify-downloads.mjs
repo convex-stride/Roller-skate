@@ -16,7 +16,9 @@ assert.equal(exe.subarray(0, 2).toString(), 'MZ');
 const apk = join(root, `releases/layans-skate-${version}-android.apk`);
 const apkHtml = execFileSync('unzip', ['-p', apk, 'assets/index.html'], { maxBuffer: 16 * 1024 * 1024 });
 assert.deepEqual(apkHtml, html, 'Android bundles the same current offline game');
-const files = [`layans-skate-${version}-windows-x64.zip`, `layans-skate-${version}-android.apk`, 'layans-skate-v0.24.zip'];
+const files = [`layans-skate-${version}-windows-x64.zip`, `layans-skate-${version}-android.apk`, 'layans-skate-v0.24.zip', 'layans-skate-browser-play.zip'];
+const browserHtml=execFileSync('unzip',['-p',join(root,'releases',files[3]),'PLAY-Layans-Skate.html'],{maxBuffer:16*1024*1024});
+assert.deepEqual(browserHtml,html,'Browser-play ZIP contains the current standalone game');
 const packedAsar=execFileSync('unzip',['-p',join(root,'releases',files[0]),'resources/app.asar'],{maxBuffer:32*1024*1024});
 assert.deepEqual(packedAsar,await readFile(join(win,'resources/app.asar')),'Windows ZIP contains the verified current application');
 for(const entry of await readdir(join(root,'dist'),{recursive:true,withFileTypes:true})) {

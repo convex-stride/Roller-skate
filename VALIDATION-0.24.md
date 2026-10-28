@@ -20,9 +20,12 @@ Production TypeScript/Vite compilation and web packaging passed. Windows and And
 - `releases/layans-skate-0.24.0-windows-x64.zip`: unsigned portable Windows x64 preview, approximately 154 MB.
 - `releases/layans-skate-0.24.0-android.apk`: locally signed Android 8+ preview, approximately 2.8 MB; requires a current Android System WebView and OpenGL ES 3.
 - `releases/layans-skate-v0.24.zip`: itch.io HTML5 build, approximately 2.8 MB, with `index.html` at the archive root.
+- `releases/layans-skate-browser-play.zip`: standalone browser edition, approximately 2.8 MB; extract it and use Open with Chrome, Edge or Brave on `PLAY-Layans-Skate.html`.
 - `releases/SHA256SUMS.txt`: checksums of these exact downloads.
 
 Downloads are generated artifacts rather than tracked source files. The **Download builds** GitHub Actions workflow can rebuild them. Packaging instructions and signing-key guidance are in [README.md](README.md).
+
+The browser-play archive was byte-checked against the current bundled HTML, and its ZIP integrity passed. After this packaging change, the production build, package checks, embedded daylight/night controls and basic gameplay smoke checks passed again. The runtime game bundle remained identical to the previously verified Windows/Android payloads.
 
 ## Scope of the evidence
 

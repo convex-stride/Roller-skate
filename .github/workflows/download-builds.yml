@@ -34,4 +34,5 @@ jobs:
             releases/layans-skate-*-windows-x64.zip
             releases/layans-skate-*-android.apk
             releases/layans-skate-v*.zip
+            releases/layans-skate-browser-play.zip
           retention-days: 14

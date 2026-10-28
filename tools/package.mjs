@@ -73,6 +73,29 @@ execFileSync(
   ["-q", "-FS", "-r", resolve(root, "releases/layans-skate-v0.24.zip"), "."],
   { cwd: dist },
 );
+// Archive the standalone edition so downloading it does not open an HTML source
+// viewer. The extracted game can be opened directly in a desktop browser.
+const browserStage = resolve(root, "releases/browser-play");
+await mkdir(browserStage, { recursive: true });
+await writeFile(resolve(browserStage, "PLAY-Layans-Skate.html"), html);
+await writeFile(resolve(browserStage, "START-HERE.txt"), `Layan's Skate — browser edition
+
+1. Extract this ZIP completely.
+2. Right-click PLAY-Layans-Skate.html, choose Open with, and select
+   Chrome, Edge, or Brave.
+3. Wait for the game to load, then choose Find your line.
+
+The HTML contains the game, physics, models, paintings, and credits.
+No Node.js, Git, local server, or internet connection is required.
+Use Settings to reduce graphics quality on slower computers.
+
+Controls: WASD to skate, Space to jump, M for the map,
+P for Taqee, Escape to pause. More controls are available in-game.
+
+This package opens in your browser. It does not restore the chat app's sidebar.
+`);
+execFileSync("zip", ["-q", "-FS", resolve(root, "releases/layans-skate-browser-play.zip"), "PLAY-Layans-Skate.html", "START-HERE.txt"], { cwd: browserStage });
+console.log("Packaged releases/layans-skate-browser-play.zip (extract and open in a desktop browser)");
 console.log(
   "Packaged releases/Layans-Skate.html (self-contained browser build)",
 );
