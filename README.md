@@ -32,6 +32,8 @@ Distant NPC helmets and all six guards use simpler meshes with matching bounds: 
 
 `npm run test:all` runs the unit suite and every browser smoke script sequentially against the production preview on port 4173. It writes each log and `results.json` under `test-results/full-suite`. Set `TEST_ONLY=unit,rails-smoke` to rerun specific suites. The long quest/companion/race flows accept `PHYSICS_TEST_DPR` (the runner uses 0.5) to lower rendering cost while preserving their viewport, physical movement, checkpoints and assertions; normal layout/visual suites retain their configured density. Browser tests use Chromium's software renderer in this cloud environment, so their frame rates are not a hardware performance benchmark.
 
+The [0.24 validation report](VALIDATION-0.24.md) records the completed 159 unit tests, 24 browser suites, package checks and physical-device testing limits.
+
 ## Run
 
 Requires Node.js 22.12+ (validated with Node 24).

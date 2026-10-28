@@ -55,8 +55,11 @@ try {
   phone.on("pageerror", error => errors.push(error.message));
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
   await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
-  await phone.waitForFunction(() => window.__skate.state.grounded && window.__skate.state.crowd.detailed > 0);
+  await phone.waitForFunction(() => window.__skate.state.grounded);
   await phone.locator("#partner-toggle").tap(); await phone.locator('[data-partner="close"]').tap();
+  // A shuffled start can be far from residents. Calling Taqee supplies a nearby
+  // articulated rider instead of assuming every spawn has a detailed NPC.
+  await phone.waitForFunction(() => window.__skate.state.companion.active && window.__skate.state.crowd.detailed > 0, null, {timeout:60000});
   assert.equal(await phone.evaluate(() => window.__skate.state.crowd.appearance.detailedGuardMeshes === window.__skate.state.crowd.detailed * 6), true);
   await phone.screenshot({ path: "releases/layans-skate-phone-safety-gear.png" });
   assert.deepEqual(errors, []);
