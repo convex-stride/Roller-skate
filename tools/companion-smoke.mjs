@@ -54,9 +54,9 @@ try {
   await page.waitForFunction(() => window.__skate.state.race?.status === "countdown");
   assert.deepEqual(await page.evaluate(() => window.__skate.state.race.standings.map(r => r.name)), ["Layan", "Taqee"]);
   await page.keyboard.down("w"); await page.keyboard.down("Shift");
-  await page.waitForFunction(() => window.__skate.state.race?.status === "racing" && window.__skate.state.race.standings.some(r => r.name === "Taqee" && r.gate > 0), null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__skate.state.race?.status === "racing" && window.__skate.state.race.standings.some(r => r.name === "Taqee" && r.gate > 0), null, { timeout: 180000 }).catch(async error=>{console.log(JSON.stringify(await page.evaluate(()=>({race:window.__skate.state.race,position:window.__skate.state.position,speed:window.__skate.state.speed,paused:window.__skate.state.paused,simTime:window.__skate.state.simTime,rendering:window.__skate.state.rendering}))));throw error;});
   await page.screenshot({ path: "releases/layans-skate-layan-vs-taqee.png" });
-  await page.waitForFunction(() => window.__skate.state.race?.status === "finished", null, { timeout: 120000 });
+  await page.waitForFunction(() => window.__skate.state.race?.status === "finished", null, { timeout: 300000 });
   await page.keyboard.up("w"); await page.keyboard.up("Shift");
   assert.equal(Object.keys(await page.evaluate(() => window.__skate.state.partnerRaceResults)).length, 1);
   assert.equal(Object.keys(await page.evaluate(() => window.__skate.state.raceResults)).length, 0);

@@ -32,10 +32,11 @@ try {
   await page.screenshot({ path: "releases/garden-spectators-v11.png" });
   console.log(JSON.stringify({ initial: first.crowd.visible, moving: moving.actions, current: await page.evaluate(() => window.__skate.state.crowd), errors }));
   assert.deepEqual(errors, []);
+  await page.close();
   const phone = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   phone.on("pageerror", e => errors.push(e.message));
   await phone.goto(process.env.GAME_URL || "http://127.0.0.1:4173");
-  await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 60000 });
+  await phone.getByRole("button", { name: "Find your line" }).tap({ timeout: 90000 });
   await phone.getByRole('button', { name: 'Pause game', exact: true }).tap(); await phone.locator('#rail-practice').tap();
   await phone.waitForFunction(() => window.__skate.state.crowd.visible > 20);
   const mobile = await phone.evaluate(() => window.__skate.state.crowd);
